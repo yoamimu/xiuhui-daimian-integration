@@ -21,6 +21,12 @@ git push -u origin main
 gh repo edit yoamimu/xiuhui-daimian-integration --description "非官方 Inkscape + Ink/Stitch 中文整合修改版" --add-topic inkscape --add-topic inkstitch --add-topic embroidery --add-topic gplv3 --add-topic chinese-localization
 ```
 
+If Git reports `Permission to yoamimu/xiuhui-daimian-integration.git denied to <other-user>`, the local Windows Git credential is authenticated as an account without write access. Fix it by either:
+
+- logging in as `yoamimu` with GitHub CLI, or
+- adding the shown account as a collaborator with write access, or
+- removing the stale GitHub credential from Windows Credential Manager and logging in again.
+
 After pushing, verify:
 
 - Visibility is public.
