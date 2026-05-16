@@ -1,13 +1,27 @@
 # Remote Repository Setup
 
-GitHub CLI on this machine is currently not logged in. After login, create the remote repository with:
+Canonical remote:
+
+```text
+https://github.com/yoamimu/xiuhui-daimian-integration.git
+```
+
+If GitHub CLI is not logged in, login first:
 
 ```powershell
 gh auth login
-gh repo create "绣绘呆棉整合版" --public --source "E:\.BuildCache\绣绘呆棉整合版" --remote origin --push --description "非官方 Inkscape + Ink/Stitch 中文整合修改版"
 ```
 
-After the repository is created, verify:
+Then push this local integration repository:
+
+```powershell
+cd "E:\.BuildCache\绣绘呆棉整合版"
+git remote add origin https://github.com/yoamimu/xiuhui-daimian-integration.git
+git push -u origin main
+gh repo edit yoamimu/xiuhui-daimian-integration --description "非官方 Inkscape + Ink/Stitch 中文整合修改版" --add-topic inkscape --add-topic inkstitch --add-topic embroidery --add-topic gplv3 --add-topic chinese-localization
+```
+
+After pushing, verify:
 
 - Visibility is public.
 - Repository license is GPL-3.0-or-later.
@@ -21,4 +35,3 @@ If using GitLab instead, create a public project with the same name and push:
 git remote add origin <your-public-gitlab-repo-url>
 git push -u origin main
 ```
-

@@ -1,8 +1,16 @@
+# xiuhui-daimian-integration
+
 # 绣绘呆棉整合版
+
+SPDX-License-Identifier: GPL-3.0-or-later
 
 绣绘呆棉整合版是一个基于 Inkscape 与 Ink/Stitch 的非官方整合修改版发行仓库。
 
 本仓库用于记录整合策略、源码对应关系、补丁、许可文件和打包发布流程。它不是 Inkscape Project 或 Ink/Stitch 官方项目，也未获得官方背书。
+
+> 非官方声明：绣绘呆棉整合版是基于 Inkscape 与 Ink/Stitch 的非官方修改版。Inkscape、Ink/Stitch 及其相关标识归各自项目和权利人所有。本项目不得暗示获得 Inkscape Project 或 Ink/Stitch 维护者的官方认可、认证或背书。
+
+当前仓库仅用于源码整合与发布准备，尚未发布正式二进制安装包。未来发布 Windows 安装包或其他平台包时，必须同步提供对应源码包或公开源码 tag。
 
 ## 当前基线
 
@@ -29,6 +37,8 @@
 
 发布二进制时必须同步提供完整对应源码、补丁、构建说明和第三方许可说明。
 
+不得对接收者附加“仅限非商业使用”“禁止再分发”“禁止修改”“禁止反编译”等与 GPL 权利冲突的额外限制。
+
 ## 非官方声明
 
 绣绘呆棉整合版是非官方修改版。不得在名称、图标、发布页、安装器或关于窗口中暗示它是 Inkscape Project 或 Ink/Stitch 官方版本。
@@ -42,12 +52,23 @@
 - `scripts/`: 本地构建和补丁应用脚本。
 - `release/`: 发布说明模板；不提交大体积安装包。
 
-## 本地源码位置
+## 本地开发布局
 
-当前开发源码位于构建产物区：
+开发机上的源码、构建、缓存、临时文件应放在当前盘符的 BuildCache 区域，避免进入云同步目录：
 
-- `E:\.BuildCache\inkscape-inkstitch-preview\src\inkscape`
-- `E:\.BuildCache\inkscape-inkstitch-preview\src\inkstitch`
+- `<drive>:\.BuildCache\inkscape-inkstitch-preview\src\inkscape`
+- `<drive>:\.BuildCache\inkscape-inkstitch-preview\src\inkstitch`
+- `<drive>:\.BuildCache\inkscape-inkstitch-preview\build`
+- `<drive>:\.BuildCache\inkscape-inkstitch-preview\.tmp_system`
 
-构建和临时目录仍应放在 `E:\.BuildCache\inkscape-inkstitch-preview\build`、`E:\.BuildCache\inkscape-inkstitch-preview\.tmp_system` 等 BuildCache 路径下，不放进云同步工作区。
+不要把 `build`、`dist`、`.venv`、`node_modules`、`__pycache__`、`.cache`、`.tmp_system` 等构建或缓存目录提交到本仓库。
 
+## 远端仓库设置
+
+建议远端仓库保持以下设置：
+
+- Visibility: public
+- Description: `非官方 Inkscape + Ink/Stitch 中文整合修改版`
+- Topics: `inkscape`, `inkstitch`, `embroidery`, `gplv3`, `chinese-localization`
+- License: GPL-3.0-or-later
+- Releases: 发布二进制时必须同时附源码包或源码 tag 链接
