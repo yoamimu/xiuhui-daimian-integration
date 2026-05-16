@@ -52,16 +52,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - `scripts/`: 本地构建和补丁应用脚本。
 - `release/`: 发布说明模板；不提交大体积安装包。
 
-## 本地开发布局
+## 开发与构建建议
 
-开发机上的源码、构建、缓存、临时文件应放在当前盘符的 BuildCache 区域，避免进入云同步目录：
+本仓库主要保存整合说明、补丁、许可文件和发布脚本，不保存完整编译产物。
 
-- `<drive>:\.BuildCache\inkscape-inkstitch-preview\src\inkscape`
-- `<drive>:\.BuildCache\inkscape-inkstitch-preview\src\inkstitch`
-- `<drive>:\.BuildCache\inkscape-inkstitch-preview\build`
-- `<drive>:\.BuildCache\inkscape-inkstitch-preview\.tmp_system`
+建议开发者在仓库外准备 Inkscape 与 Ink/Stitch 源码工作区，并将大型构建产物、临时文件和依赖缓存放在独立的本地构建目录中。具体目录可按自己的系统环境和构建工具习惯设置。
 
-不要把 `build`、`dist`、`.venv`、`node_modules`、`__pycache__`、`.cache`、`.tmp_system` 等构建或缓存目录提交到本仓库。
+不要把 `build`、`dist`、`.venv`、`node_modules`、`__pycache__`、`.cache`、`.tmp_system` 等构建或缓存目录提交到本仓库。发布二进制时，应另行附带对应源码包或公开源码 tag。
 
 ## 远端仓库设置
 
