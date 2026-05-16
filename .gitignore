@@ -1,0 +1,23 @@
+# Local build and release output
+/build/
+/dist/
+/release/*.exe
+/release/*.msi
+/release/*.zip
+/release/*.7z
+/release/*.tar
+/release/*.tar.gz
+
+# Temporary/cache output
+/.tmp_system/
+/.cache/
+/.pip-cache/
+/.pycache/
+__pycache__/
+*.pyc
+
+# Local machine metadata
+/.local/
+/.env
+*.log
+

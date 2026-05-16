@@ -1,0 +1,1212 @@
+diff --git a/share/ui/toolbar-commands.ui b/share/ui/toolbar-commands.ui
+index 767201d..164e74f 100644
+--- a/share/ui/toolbar-commands.ui
++++ b/share/ui/toolbar-commands.ui
+@@ -1,6 +1,36 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <interface>
+   <requires lib="gtk" version="4.0"/>
++  <menu id="inkstitch_quick_menu">
++    <section>
++      <item>
++        <attribute name="label" translatable="no">刺绣参数</attribute>
++        <attribute name="action">app.org.inkstitch.params</attribute>
++      </item>
++      <item>
++        <attribute name="label" translatable="no">文字刺绣工具</attribute>
++        <attribute name="action">app.org.inkstitch.lettering</attribute>
++      </item>
++      <item>
++        <attribute name="label" translatable="no">自动布线缎纹柱</attribute>
++        <attribute name="action">app.org.inkstitch.auto-satin</attribute>
++      </item>
++    </section>
++    <section>
++      <item>
++        <attribute name="label" translatable="no">针迹方案预览</attribute>
++        <attribute name="action">app.org.inkstitch.stitch-plan-preview</attribute>
++      </item>
++      <item>
++        <attribute name="label" translatable="no">模拟器</attribute>
++        <attribute name="action">app.org.inkstitch.simulator</attribute>
++      </item>
++      <item>
++        <attribute name="label" translatable="no">对象疑难解答</attribute>
++        <attribute name="action">app.org.inkstitch.troubleshoot</attribute>
++      </item>
++    </section>
++  </menu>
+   <object class="GtkBox" id="commands-toolbar">
+     <property name="halign">start</property>
+     <property name="valign">start</property>
+@@ -147,6 +177,28 @@
+         </style>
+       </object>
+     </child>
++    <child>
++      <object class="GtkMenuButton" id="inkstitch_quick_actions">
++        <property name="focusable">True</property>
++        <property name="focus-on-click">False</property>
++        <property name="receives-default">True</property>
++        <property name="tooltip-text" translatable="no">Ink/Stitch</property>
++        <property name="direction">right</property>
++        <property name="has-frame">False</property>
++        <property name="menu-model">inkstitch_quick_menu</property>
++        <property name="icon-name">embrodery-stitch</property>
++        <style>
++            <class name="priority1"/>
++        </style>
++      </object>
++    </child>
++    <child>
++      <object class="GtkSeparator">
++        <style>
++            <class name="priority1"/>
++        </style>
++      </object>
++    </child>
+     <child>
+       <object class="GtkButton">
+         <property name="focusable">True</property>
+diff --git a/src/ui/widget/canvas-grid.cpp b/src/ui/widget/canvas-grid.cpp
+index de2d77b..7473aa1 100644
+--- a/src/ui/widget/canvas-grid.cpp
++++ b/src/ui/widget/canvas-grid.cpp
+@@ -18,13 +18,35 @@
+ 
+ #include "canvas-grid.h"
+ 
+-#include <glibmm/i18n.h>
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <functional>
++#include <initializer_list>
++#include <memory>
++#include <sstream>
++#include <string>
++#include <vector>
++
+ #include <glibmm/main.h>
++#include <glibmm/i18n.h>
+ #include <gtkmm/adjustment.h>
++#include <gtkmm/box.h>
++#include <gtkmm/button.h>
+ #include <gtkmm/checkbutton.h>
++#include <gtkmm/cssprovider.h>
++#include <gtkmm/dragsource.h>
++#include <gtkmm/droptarget.h>
+ #include <gtkmm/eventcontrollermotion.h>
++#include <gtkmm/expander.h>
++#include <gtkmm/fixed.h>
++#include <gtkmm/gesturedrag.h>
+ #include <gtkmm/gestureclick.h>
++#include <gtkmm/image.h>
+ #include <gtkmm/label.h>
++#include <gtkmm/scrolledwindow.h>
++#include <gtkmm/separator.h>
++#include <gtkmm/widgetpaintable.h>
+ 
+ #include "desktop.h" // Hopefully temp.
+ #include "display/control/canvas-item-guideline.h"
+@@ -50,6 +72,523 @@
+ 
+ namespace Inkscape::UI::Widget {
+ 
++namespace {
++
++constexpr int FLOATING_PANEL_EDGE = 6;
++constexpr int FLOATING_PANEL_MINI_SIZE = 46;
++
++char const *floating_panel_css = R"CSS(
++#InkStitchFloatingPanel {
++    background-color: alpha(@theme_bg_color, 0.92);
++    border: 1px solid @borders;
++    border-radius: 6px;
++}
++
++.inkstitch-floating-title {
++    background-color: alpha(@theme_base_color, 0.32);
++    border-bottom: 1px solid alpha(@borders, 0.65);
++    padding: 2px 8px;
++}
++
++.inkstitch-floating-title label {
++    font-weight: 600;
++}
++
++.inkstitch-floating-panel-collapse {
++    min-width: 32px;
++    min-height: 24px;
++    padding: 0 7px;
++    background-image: none;
++    background-color: alpha(@theme_selected_bg_color, 0.55);
++    border: 1px solid alpha(@theme_selected_bg_color, 0.95);
++    border-radius: 6px;
++    color: @theme_selected_fg_color;
++    font-weight: 700;
++}
++
++.inkstitch-floating-panel-collapse:hover {
++    background-color: @theme_selected_bg_color;
++}
++
++#InkStitchFloatingPanel.inkstitch-floating-panel-mini {
++    background-color: transparent;
++    border-color: transparent;
++}
++
++#InkStitchFloatingPanel.inkstitch-floating-panel-mini .inkstitch-floating-title {
++    background-color: transparent;
++    border-bottom-width: 0;
++    padding: 0;
++}
++
++.inkstitch-floating-mini-button {
++    min-width: 46px;
++    min-height: 46px;
++    padding: 0;
++    background-image: none;
++    background-color: #0f7ad9;
++    border: 1px solid #65b7ff;
++    border-radius: 999px;
++    color: #ffffff;
++    font-weight: 700;
++}
++
++.inkstitch-floating-mini-button label {
++    font-size: 24px;
++    font-weight: 800;
++}
++
++.inkstitch-floating-mini-button:hover {
++    background-color: #168cff;
++}
++
++.inkstitch-floating-content {
++    padding: 8px;
++}
++
++.inkstitch-floating-primary {
++    min-height: 46px;
++    font-weight: 700;
++}
++
++.inkstitch-floating-compact {
++    min-height: 30px;
++}
++
++.inkstitch-floating-icon {
++    min-width: 32px;
++    min-height: 30px;
++    padding: 4px;
++}
++
++.inkstitch-floating-tab {
++    min-width: 52px;
++    min-height: 30px;
++    padding: 4px 4px;
++    background-image: none;
++    background-color: transparent;
++    border-width: 0 2px 0 0;
++    border-color: transparent;
++    border-radius: 0;
++    box-shadow: none;
++}
++
++.inkstitch-floating-tab:hover {
++    background-color: alpha(@theme_fg_color, 0.07);
++}
++
++.inkstitch-floating-tab:checked {
++    background-image: none;
++    background-color: alpha(@theme_selected_bg_color, 0.24);
++    border-color: @theme_selected_bg_color;
++    box-shadow: none;
++}
++
++.inkstitch-floating-collapse-toggle {
++    min-width: 34px;
++    min-height: 18px;
++    padding: 0 8px;
++    background-image: none;
++    background-color: alpha(@theme_selected_bg_color, 0.34);
++    border: 1px solid alpha(@theme_selected_bg_color, 0.75);
++    border-radius: 8px;
++    color: @theme_selected_fg_color;
++    font-weight: 700;
++}
++
++.inkstitch-floating-collapse-toggle:hover {
++    background-color: alpha(@theme_selected_bg_color, 0.55);
++}
++)CSS";
++
++enum ResizeEdge {
++    ResizeNone = 0,
++    ResizeLeft = 1 << 0,
++    ResizeRight = 1 << 1,
++    ResizeTop = 1 << 2,
++    ResizeBottom = 1 << 3,
++};
++
++} // namespace
++
++class FloatingActionPanel : public Gtk::Grid
++{
++public:
++    FloatingActionPanel(char const *title, int x, int y, int width, int height, int min_width, int min_height)
++        : _x(x)
++        , _y(y)
++        , _width(width)
++        , _height(height)
++        , _min_width(min_width)
++        , _min_height(min_height)
++    {
++        install_css();
++
++        set_name("InkStitchFloatingPanel");
++        set_halign(Gtk::Align::START);
++        set_valign(Gtk::Align::START);
++        set_size_request(_width, _height);
++
++        _content.set_orientation(Gtk::Orientation::VERTICAL);
++        _content.set_spacing(8);
++        _content.set_hexpand(true);
++        _content.set_vexpand(true);
++        _content.set_halign(Gtk::Align::FILL);
++        _content.set_valign(Gtk::Align::FILL);
++        _content.add_css_class("inkstitch-floating-content");
++
++        _titlebar.set_orientation(Gtk::Orientation::HORIZONTAL);
++        _titlebar.set_spacing(6);
++        _titlebar.set_hexpand(true);
++        _titlebar.set_size_request(-1, 24);
++        _titlebar.set_cursor("move");
++        _titlebar.add_css_class("inkstitch-floating-title");
++
++        _title_label.set_text(title);
++        _title_label.set_halign(Gtk::Align::START);
++        _title_label.set_hexpand(true);
++        _titlebar.append(_title_label);
++
++        _collapse_icon.set_from_icon_name("view-restore-symbolic");
++        _collapse_icon.set_pixel_size(20);
++        _collapse_button.set_child(_collapse_icon);
++        _collapse_button.set_tooltip_text("全部收起");
++        _collapse_button.add_css_class("inkstitch-floating-panel-collapse");
++        _collapse_button.set_visible(false);
++        _collapse_button.signal_clicked().connect([this] {
++            set_minimized(true);
++        });
++        _titlebar.append(_collapse_button);
++
++        _restore_label.set_text("绣");
++        _restore_label.set_halign(Gtk::Align::CENTER);
++        _restore_label.set_valign(Gtk::Align::CENTER);
++        _restore_button.set_child(_restore_label);
++        _restore_button.set_tooltip_text("展开 Ink/Stitch");
++        _restore_button.add_css_class("inkstitch-floating-mini-button");
++        _restore_button.set_visible(false);
++        _restore_button.signal_clicked().connect([this] {
++            if (_drag_moved) {
++                _drag_moved = false;
++                return;
++            }
++            set_minimized(false);
++        });
++        _titlebar.append(_restore_button);
++
++        setup_handle(_top_left, "nwse-resize", ResizeTop | ResizeLeft);
++        setup_handle(_top, "ns-resize", ResizeTop);
++        setup_handle(_top_right, "nesw-resize", ResizeTop | ResizeRight);
++        setup_handle(_left, "ew-resize", ResizeLeft);
++        setup_handle(_right, "ew-resize", ResizeRight);
++        setup_handle(_bottom_left, "nesw-resize", ResizeBottom | ResizeLeft);
++        setup_handle(_bottom, "ns-resize", ResizeBottom);
++        setup_handle(_bottom_right, "nwse-resize", ResizeBottom | ResizeRight);
++
++        _top_left.set_size_request(FLOATING_PANEL_EDGE, FLOATING_PANEL_EDGE);
++        _top_right.set_size_request(FLOATING_PANEL_EDGE, FLOATING_PANEL_EDGE);
++        _bottom_left.set_size_request(FLOATING_PANEL_EDGE, FLOATING_PANEL_EDGE);
++        _bottom_right.set_size_request(FLOATING_PANEL_EDGE, FLOATING_PANEL_EDGE);
++        _top.set_size_request(-1, FLOATING_PANEL_EDGE);
++        _bottom.set_size_request(-1, FLOATING_PANEL_EDGE);
++        _left.set_size_request(FLOATING_PANEL_EDGE, -1);
++        _right.set_size_request(FLOATING_PANEL_EDGE, -1);
++
++        attach(_top_left, 0, 0);
++        attach(_top, 1, 0);
++        attach(_top_right, 2, 0);
++        attach(_left, 0, 1, 1, 2);
++        attach(_titlebar, 1, 1);
++        attach(_right, 2, 1, 1, 2);
++        attach(_content, 1, 2);
++        attach(_bottom_left, 0, 3);
++        attach(_bottom, 1, 3);
++        attach(_bottom_right, 2, 3);
++
++        setup_drag(_titlebar);
++        setup_drag(_restore_button);
++    }
++
++    Gtk::Box &content() { return _content; }
++
++    void enable_minimize(char const *collapse_tooltip, char const *restore_tooltip)
++    {
++        _collapse_enabled = true;
++        _collapse_button.set_tooltip_text(collapse_tooltip);
++        _restore_button.set_tooltip_text(restore_tooltip);
++        _collapse_button.set_visible(!_minimized);
++    }
++
++    void put_in(Gtk::Overlay &overlay)
++    {
++        overlay.add_overlay(*this);
++        apply_position();
++    }
++
++private:
++    static void install_css()
++    {
++        static Glib::RefPtr<Gtk::CssProvider> provider;
++        if (!provider) {
++            provider = Gtk::CssProvider::create();
++            provider->load_from_data(floating_panel_css);
++            if (auto display = Gdk::Display::get_default()) {
++                Gtk::StyleContext::add_provider_for_display(display, provider, GTK_STYLE_PROVIDER_PRIORITY_APPLICATION + 20);
++            }
++        }
++    }
++
++    void setup_drag(Gtk::Widget &widget)
++    {
++        auto click = Gtk::GestureClick::create();
++        click->set_button(1);
++        click->set_propagation_phase(Gtk::PropagationPhase::CAPTURE);
++        click->signal_pressed().connect([this, target = &widget](int, double start_x, double start_y) {
++            _dragging = true;
++            _drag_moved = false;
++            _drag_press_panel_x = _x;
++            _drag_press_panel_y = _y;
++            _drag_pointer_offset_x = FLOATING_PANEL_EDGE + start_x;
++            _drag_pointer_offset_y = FLOATING_PANEL_EDGE + start_y;
++            if (auto parent = get_parent()) {
++                auto start = target->compute_point(*parent, Gdk::Graphene::Point(start_x, start_y));
++                if (start) {
++                    _drag_pointer_offset_x = start->get_x() - _x;
++                    _drag_pointer_offset_y = start->get_y() - _y;
++                }
++            }
++        });
++        click->signal_released().connect([this](int, double, double) {
++            _dragging = false;
++        });
++        widget.add_controller(click);
++
++        auto motion = Gtk::EventControllerMotion::create();
++        motion->set_propagation_phase(Gtk::PropagationPhase::CAPTURE);
++        motion->signal_motion().connect([this, target = &widget](double x, double y) {
++            if (!_dragging) {
++                return;
++            }
++            if (auto parent = get_parent()) {
++                auto point = target->compute_point(*parent, Gdk::Graphene::Point(x, y));
++                if (!point) {
++                    return;
++                }
++                auto next_x = point->get_x() - _drag_pointer_offset_x;
++                auto next_y = point->get_y() - _drag_pointer_offset_y;
++                if (std::abs(next_x - _drag_press_panel_x) > 3 || std::abs(next_y - _drag_press_panel_y) > 3) {
++                    _drag_moved = true;
++                }
++                move_to(next_x, next_y);
++            }
++        });
++        widget.add_controller(motion);
++    }
++
++    void setup_handle(Gtk::Box &handle, char const *cursor, int edges)
++    {
++        handle.set_cursor(cursor);
++
++        auto drag = Gtk::GestureDrag::create();
++        drag->set_propagation_phase(Gtk::PropagationPhase::CAPTURE);
++        drag->signal_drag_begin().connect([this](double, double) {
++            _resize_start_x = _x;
++            _resize_start_y = _y;
++            _resize_start_width = _width;
++            _resize_start_height = _height;
++        });
++        drag->signal_drag_update().connect([this, edges](double dx, double dy) {
++            if (std::abs(dx) > 3 || std::abs(dy) > 3) {
++                _drag_moved = true;
++            }
++            resize_from(edges, dx, dy);
++        });
++        handle.add_controller(drag);
++    }
++
++    void apply_position()
++    {
++        if (_fixed_parent) {
++            _fixed_parent->move(*this, _x, _y);
++        } else {
++            set_margin_start(static_cast<int>(_x));
++            set_margin_top(static_cast<int>(_y));
++        }
++    }
++
++    void set_handles_visible(bool visible)
++    {
++        _top_left.set_visible(visible);
++        _top.set_visible(visible);
++        _top_right.set_visible(visible);
++        _left.set_visible(visible);
++        _right.set_visible(visible);
++        _bottom_left.set_visible(visible);
++        _bottom.set_visible(visible);
++        _bottom_right.set_visible(visible);
++    }
++
++    void set_minimized(bool minimized)
++    {
++        if (_minimized == minimized) {
++            return;
++        }
++
++        _minimized = minimized;
++        if (minimized) {
++            _expanded_width = _width;
++            _expanded_height = _height;
++            _x = std::max(0.0, _x + _expanded_width - FLOATING_PANEL_MINI_SIZE);
++            _width = FLOATING_PANEL_MINI_SIZE;
++            _height = FLOATING_PANEL_MINI_SIZE;
++            add_css_class("inkstitch-floating-panel-mini");
++        } else {
++            _x = std::max(0.0, _x + _width - _expanded_width);
++            _width = _expanded_width;
++            _height = _expanded_height;
++            remove_css_class("inkstitch-floating-panel-mini");
++        }
++
++        set_handles_visible(!minimized);
++        _title_label.set_visible(!minimized);
++        _collapse_button.set_visible(_collapse_enabled && !minimized);
++        _restore_button.set_visible(minimized);
++        _content.set_visible(!minimized);
++        _titlebar.set_size_request(minimized ? FLOATING_PANEL_MINI_SIZE : -1,
++                                   minimized ? FLOATING_PANEL_MINI_SIZE : 24);
++        _titlebar.set_halign(minimized ? Gtk::Align::CENTER : Gtk::Align::FILL);
++        _titlebar.set_hexpand(!minimized);
++        set_size_request(_width, _height);
++        apply_position();
++    }
++
++    void move_to(double x, double y)
++    {
++        if (_fixed_parent) {
++            _x = std::max(0.0, x);
++            _y = std::max(0.0, y);
++        } else {
++            auto [max_x, max_y] = max_position_for(_width, _height);
++            _x = std::clamp(x, 0.0, max_x);
++            _y = std::clamp(y, 0.0, max_y);
++        }
++        if (_fixed_parent) {
++            _fixed_parent->move(*this, _x, _y);
++        } else {
++            apply_position();
++        }
++    }
++
++    void resize_from(int edges, double dx, double dy)
++    {
++        auto x = _resize_start_x;
++        auto y = _resize_start_y;
++        auto width = _resize_start_width;
++        auto height = _resize_start_height;
++
++        if (edges & ResizeLeft) {
++            x = _resize_start_x + dx;
++            width = _resize_start_width - dx;
++            if (width < _min_width) {
++                x -= _min_width - width;
++                width = _min_width;
++            }
++        } else if (edges & ResizeRight) {
++            width = _resize_start_width + dx;
++        }
++
++        if (edges & ResizeTop) {
++            y = _resize_start_y + dy;
++            height = _resize_start_height - dy;
++            if (height < _min_height) {
++                y -= _min_height - height;
++                height = _min_height;
++            }
++        } else if (edges & ResizeBottom) {
++            height = _resize_start_height + dy;
++        }
++
++        width = std::max(width, static_cast<double>(_min_width));
++        height = std::max(height, static_cast<double>(_min_height));
++
++        if (!_fixed_parent) {
++            auto parent = get_parent();
++            if (parent) {
++                auto max_width = std::max(_min_width, parent->get_width() - static_cast<int>(x));
++                auto max_height = std::max(_min_height, parent->get_height() - static_cast<int>(y));
++                width = std::min(width, static_cast<double>(max_width));
++                height = std::min(height, static_cast<double>(max_height));
++            }
++        }
++
++        _x = std::max(0.0, x);
++        _y = std::max(0.0, y);
++        _width = static_cast<int>(width);
++        _height = static_cast<int>(height);
++
++        if (_fixed_parent) {
++            _fixed_parent->move(*this, _x, _y);
++        } else {
++            apply_position();
++        }
++        set_size_request(_width, _height);
++    }
++
++    std::pair<double, double> max_position_for(int width, int height) const
++    {
++        if (_fixed_parent) {
++            return {
++                static_cast<double>(std::max(0, _fixed_parent->get_width() - width)),
++                static_cast<double>(std::max(0, _fixed_parent->get_height() - height)),
++            };
++        } else if (auto parent = get_parent()) {
++            return {
++                static_cast<double>(std::max(0, parent->get_width() - width)),
++                static_cast<double>(std::max(0, parent->get_height() - height)),
++            };
++        }
++        return {10000.0, 10000.0};
++    }
++
++    Gtk::Box _top_left;
++    Gtk::Box _top;
++    Gtk::Box _top_right;
++    Gtk::Box _left;
++    Gtk::Box _right;
++    Gtk::Box _bottom_left;
++    Gtk::Box _bottom;
++    Gtk::Box _bottom_right;
++    Gtk::Box _titlebar;
++    Gtk::Box _content;
++    Gtk::Label _title_label;
++    Gtk::Image _collapse_icon;
++    Gtk::Label _restore_label;
++    Gtk::Button _collapse_button;
++    Gtk::Button _restore_button;
++    Gtk::Fixed *_fixed_parent = nullptr;
++
++    double _x = 0;
++    double _y = 0;
++    int _width = 0;
++    int _height = 0;
++    int _min_width = 0;
++    int _min_height = 0;
++    int _expanded_width = 0;
++    int _expanded_height = 0;
++    bool _collapse_enabled = false;
++    bool _minimized = false;
++    bool _dragging = false;
++    bool _drag_moved = false;
++    double _drag_press_panel_x = 0;
++    double _drag_press_panel_y = 0;
++    double _drag_pointer_offset_x = 0;
++    double _drag_pointer_offset_y = 0;
++    double _resize_start_x = 0;
++    double _resize_start_y = 0;
++    double _resize_start_width = 0;
++    double _resize_start_height = 0;
++};
++
+ CanvasGrid::CanvasGrid(SPDesktopWidget *dtw)
+ {
+     _dtw = dtw;
+@@ -70,6 +609,489 @@ CanvasGrid::CanvasGrid(SPDesktopWidget *dtw)
+     _canvas_overlay.add_overlay(*_notice);
+     _canvas_overlay.set_expand();
+ 
++    struct PanelAction {
++        char const *id;
++        char const *label;
++        char const *category;
++        char const *icon;
++        char const *tooltip;
++    };
++
++    auto setup_canvas_action_button = [](Gtk::Button &button, Glib::ustring const &icon_name, Glib::ustring const &label,
++                                         Glib::ustring const &tooltip, Glib::ustring const &action_name,
++                                         char const *css_class = "inkstitch-floating-compact",
++                                         bool vexpand = true) {
++        auto content = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 6);
++        auto icon = Gtk::make_managed<Gtk::Image>();
++        icon->set_from_icon_name(icon_name);
++        icon->set_pixel_size(16);
++        auto text = Gtk::make_managed<Gtk::Label>(label);
++        text->set_ellipsize(Pango::EllipsizeMode::END);
++        text->set_hexpand(true);
++        text->set_halign(Gtk::Align::START);
++        content->append(*icon);
++        content->append(*text);
++
++        button.set_child(*content);
++        button.set_detailed_action_name(action_name);
++        button.set_tooltip_text(tooltip);
++        button.set_hexpand(true);
++        button.set_vexpand(vexpand);
++        button.set_valign(Gtk::Align::FILL);
++        button.add_css_class(css_class);
++    };
++
++    auto make_canvas_action_button = [setup_canvas_action_button](PanelAction const &action,
++                                                                  char const *css_class = "inkstitch-floating-compact",
++                                                                  bool vexpand = false) {
++        auto button = Gtk::make_managed<Gtk::Button>();
++        auto detailed_action = std::string(action.id);
++        if (detailed_action.rfind("org.", 0) == 0) {
++            detailed_action = "app." + detailed_action;
++        }
++        setup_canvas_action_button(*button, action.icon, action.label, action.tooltip,
++                                   detailed_action, css_class, vexpand);
++        return button;
++    };
++
++    setup_canvas_action_button(_document_import_button, "document-import", "导入",
++                               "Import...", "win.document-import");
++    setup_canvas_action_button(_document_export_button, "document-export", "导出",
++                               "Export...", "win.dialog-open('Export')");
++    _file_action_panel = std::make_unique<FloatingActionPanel>("文件操作", 18, 18, 150, 116, 126, 96);
++    _file_action_panel->content().append(_document_import_button);
++    _file_action_panel->content().append(_document_export_button);
++    _file_action_panel->put_in(_canvas_overlay);
++
++    auto setup_icon_button = [](Gtk::Button &button, char const *icon_name, char const *tooltip, char const *action_name) {
++        button.set_icon_name(icon_name);
++        button.set_detailed_action_name(action_name);
++        button.set_tooltip_text(tooltip);
++        button.set_vexpand(false);
++        button.add_css_class("inkstitch-floating-icon");
++    };
++    setup_icon_button(_inkstitch_preferences_button, "preferences-system", "Ink/Stitch: 偏好设置",
++                      "app.org.inkstitch.preferences");
++    setup_icon_button(_inkstitch_about_button, "help-about", "Ink/Stitch: 关于", "app.org.inkstitch.about");
++
++    struct PanelUiState {
++        std::vector<PanelAction> actions;
++        std::vector<std::string> categories;
++        std::vector<std::string> default_favorites;
++        std::vector<std::string> favorites;
++        std::vector<Gtk::ToggleButton *> category_buttons;
++        Gtk::Grid *favorites_grid = nullptr;
++        Gtk::Grid *actions_grid = nullptr;
++        Gtk::ToggleButton *edit_toggle = nullptr;
++        std::string current_category = "针法";
++        bool edit_mode = false;
++        std::function<void()> render_favorites;
++        std::function<void()> render_actions;
++        std::function<void()> save_favorites;
++        std::function<void(std::string const &)> toggle_favorite;
++    };
++
++    constexpr char const *favorites_pref_path = "/options/inkstitchFloatingPanel/favorites";
++
++    auto state = std::make_shared<PanelUiState>();
++    state->categories = {"针法", "填充", "缎纹", "描边", "文字", "线色", "命令", "检查", "预览导出", "字体", "编辑"};
++    state->actions = {
++        {"org.inkstitch.params", "刺绣参数", "针法", "embrodery-stitch", "调整刺绣参数"},
++        {"org.inkstitch.sew-stack-editor", "缝制堆栈（预览）...", "针法", "view-list", "缝制堆栈（预览）..."},
++        {"org.inkstitch.cutwork-segmentation", "镂空绣分段...", "针法", "edit-cut", "根据切割角度将路径拆分为镂空绣分段"},
++        {"org.inkstitch.install", "安装附加资源...", "针法", "list-add", "将调色板或图案针迹符号库安装到 Inkscape"},
++
++        {"org.inkstitch.break-apart", "拆分填充对象", "填充", "format-justify-fill", "拆分并修复损坏的填充形状"},
++        {"org.inkstitch.tartan", "格纹", "填充", "format-justify-fill", "格纹条纹编辑器"},
++        {"org.inkstitch.cross-stitch-helper", "十字绣助手", "填充", "format-justify-fill", "十字绣：设置并应用网格尺寸的助手"},
++        {"org.inkstitch.knockdown-fill", "所选对象转压底填充", "填充", "format-justify-fill", "围绕所选对象按指定偏移生成压底针迹"},
++        {"org.inkstitch.gradient-blocks", "转换为渐变色块", "填充", "format-justify-fill", "将带渐变的填充拆分为单色块"},
++
++        {"org.inkstitch.auto-satin", "自动布线缎纹柱", "缎纹", "embrodery-stitch", "为选中的缎纹元素生成连续路径"},
++        {"org.inkstitch.stroke-to-satin", "描边转缎纹柱", "缎纹", "embrodery-stitch", "描边转缎纹柱"},
++        {"org.inkstitch.stroke-lpe-satin", "描边转实时路径效果缎纹", "缎纹", "embrodery-stitch", "描边转实时路径效果缎纹"},
++        {"org.inkstitch.fill-to-satin", "填充转缎纹柱", "缎纹", "embrodery-stitch", "将填充元素转换为缎纹柱"},
++        {"org.inkstitch.zigzag-line-to-satin", "之字线转缎纹柱", "缎纹", "embrodery-stitch", "之字线转缎纹柱"},
++        {"org.inkstitch.satin-multicolor", "多色缎纹", "缎纹", "embrodery-stitch", "生成多色缎纹"},
++        {"org.inkstitch.flip-satins", "翻转缎纹柱轨道", "缎纹", "object-flip-horizontal", "翻转缎纹柱轨道"},
++        {"org.inkstitch.cut-satin", "切分缎纹柱", "缎纹", "edit-cut", "切分缎纹柱并保留 Ink/Stitch 设置"},
++
++        {"org.inkstitch.auto-run", "自动布线平针", "描边", "object-select", "为所有选中元素生成连续路径"},
++        {"org.inkstitch.redwork", "红线绣", "描边", "object-select", "让每个元素正好经过两次"},
++        {"org.inkstitch.fill-to-stroke", "填充转描边", "描边", "object-select", "填充转描边"},
++        {"org.inkstitch.satin-to-stroke", "缎纹柱转描边", "描边", "object-select", "缎纹柱转描边"},
++        {"org.inkstitch.jump-to-stroke", "跳针转描边", "描边", "object-select", "将所选元素之间的跳针转换为平针"},
++        {"org.inkstitch.outline", "轮廓", "描边", "object-select", "围绕针迹路径生成轮廓"},
++
++        {"org.inkstitch.lettering", "文字刺绣工具", "文字", "insert-text", "向文档插入可直接刺绣的文字"},
++        {"org.inkstitch.lettering-along-path", "沿路径文字刺绣", "文字", "insert-text", "将一行文字贴合到路径"},
++
++        {"org.inkstitch.apply-palette", "应用调色板", "线色", "preferences-color", "将文档中所有元素的颜色匹配到指定调色板"},
++        {"org.inkstitch.apply-threadlist", "应用线色表", "线色", "preferences-color", "将指定颜色文件中的颜色应用到本文档对象"},
++        {"org.inkstitch.palette-to-text", "调色板转文字", "线色", "preferences-color", "将绣线调色板作为彩色文字导入"},
++        {"org.inkstitch.install-custom-palette", "安装自定义调色板", "线色", "preferences-color", "将自定义调色板安装到 Inkscape"},
++        {"org.inkstitch.generate-palette", "生成线色调色板", "线色", "preferences-color", "从彩色文字元素生成自定义调色板"},
++        {"org.inkstitch.palette-split-text", "拆分文字", "线色", "preferences-color", "拆分文字"},
++
++        {"org.inkstitch.commands", "将命令附加到所选对象", "命令", "insert-object", "添加影响选定元素的命令"},
++        {"org.inkstitch.global-commands", "添加命令", "命令", "insert-object", "添加影响整个文档的命令"},
++        {"org.inkstitch.layer-commands", "添加图层命令", "命令", "insert-object", "添加影响所选图层的命令"},
++        {"org.inkstitch.object-commands-toggle-visibility", "显示/隐藏对象命令", "命令", "insert-object", "显示/隐藏对象命令"},
++        {"org.inkstitch.commands-scale-symbols", "缩放命令符号", "命令", "insert-object", "统一调整所有命令符号大小"},
++        {"org.inkstitch.jump-to-trim", "跳针转剪线/停止命令", "命令", "insert-object", "为后接跳针的元素设置剪线命令"},
++
++        {"org.inkstitch.troubleshoot", "对象疑难解答", "检查", "dialog-warning", "标记文档或选区中有问题的位置"},
++        {"org.inkstitch.element-info", "元素信息", "检查", "dialog-warning", "显示所选元素的刺绣信息"},
++        {"org.inkstitch.cleanup", "清理文档", "检查", "dialog-warning", "移除无法刺绣的小元素"},
++        {"org.inkstitch.remove-embroidery-settings", "移除刺绣设置", "检查", "dialog-warning", "从文档中移除指定或全部刺绣设置"},
++        {"org.inkstitch.update-svg", "更新 Ink/Stitch SVG", "检查", "dialog-warning", "更新 Ink/Stitch SVG"},
++
++        {"org.inkstitch.stitch-plan-preview", "针迹方案预览", "预览导出", "document-print-preview", "针迹方案预览"},
++        {"org.inkstitch.stitch-plan-preview-undo", "撤销针迹方案预览", "预览导出", "document-revert", "撤销针迹方案预览"},
++        {"org.inkstitch.simulator", "模拟器", "预览导出", "media-playback-start", "模拟器"},
++        {"org.inkstitch.density-map", "密度图", "预览导出", "document-print-preview", "在每个针迹位置显示彩色点"},
++        {"org.inkstitch.display-stacking-order", "显示堆叠顺序", "预览导出", "view-list", "生成编号标签以显示刺绣顺序"},
++        {"win.dialog-open('Export')", "导出 DST", "预览导出", "document-save-as", "打开导出面板，默认使用 DST 格式"},
++        {"org.inkstitch.print", "PDF 导出", "预览导出", "document-print", "PDF 导出"},
++
++        {"org.inkstitch.lettering-custom-font-dir", "自定义字体目录", "字体", "font-select", "为文字刺绣工具指定自定义字体目录"},
++        {"org.inkstitch.lettering-generate-json", "生成 JSON", "字体", "font-select", "生成字体 JSON 文件，使其可用于文字刺绣工具"},
++        {"org.inkstitch.lettering-edit-json", "编辑 JSON", "字体", "font-select", "验证或更新现有字体信息文件"},
++        {"org.inkstitch.lettering-svg-font-to-layers", "SVG 字体转字形图层", "字体", "font-select", "将 SVG 字体转换为字形图层"},
++        {"org.inkstitch.lettering-font-sample", "字体采样", "字体", "font-select", "将指定字体的所有字形插入文档"},
++        {"org.inkstitch.letters-to-font", "字母转字体", "字体", "font-select", "将预数字化字体的所有可用字形插入文档"},
++        {"org.inkstitch.organize-glyphs", "整理字形", "字体", "font-select", "辅助处理组合字形"},
++        {"org.inkstitch.lettering-remove-kerning", "移除字距调整", "字体", "font-select", "从指定 SVG 文件中移除字距调整信息"},
++        {"org.inkstitch.force-lock-stitches", "强制锁针", "字体", "font-select", "为元素设置强制锁针属性"},
++        {"org.inkstitch.lettering-set-color-sort-index", "设置颜色排序索引", "字体", "font-select", "定义多色字体的堆叠顺序"},
++
++        {"org.inkstitch.reorder", "按选择顺序重新排列对象堆叠", "编辑", "document-edit", "按选择顺序重新排列对象堆叠"},
++        {"org.inkstitch.transform-elements", "变换", "编辑", "document-edit", "旋转或翻转刺绣元素，同时变换针迹角度"},
++        {"org.inkstitch.duplicate-params", "复制刺绣参数", "编辑", "document-edit", "将第一个选定元素的参数应用于其余选定元素"},
++        {"org.inkstitch.apply-attribute", "应用属性", "编辑", "document-edit", "将自定义属性应用到多个元素"},
++        {"org.inkstitch.select-elements", "选择刺绣元素", "编辑", "object-select", "选择刺绣元素"},
++        {"org.inkstitch.selection-to-pattern", "所选对象转图案", "编辑", "document-edit", "将所选元素标记为图案"},
++        {"org.inkstitch.selection-to-guide-line", "所选对象转引导线", "编辑", "document-edit", "将所选元素标记为引导线"},
++        {"org.inkstitch.selection-to-anchor-line", "所选对象转锚定线", "编辑", "document-edit", "将所选元素标记为锚定线"},
++        {"org.inkstitch.unlink-clone", "取消克隆链接", "编辑", "document-edit", "取消克隆链接并应用填充针迹角度"},
++        {"org.inkstitch.remove-duplicated-points", "移除重复点", "编辑", "document-edit", "移除重复点"},
++        {"org.inkstitch.test-swatches", "生成测试样片", "编辑", "document-edit", "从所选对象生成测试样片"},
++    };
++
++    state->default_favorites = {
++        "org.inkstitch.params",
++        "org.inkstitch.lettering",
++        "org.inkstitch.auto-satin",
++        "org.inkstitch.stitch-plan-preview",
++        "org.inkstitch.simulator",
++        "org.inkstitch.troubleshoot",
++        "win.dialog-open('Export')",
++    };
++
++    auto find_action = [state](std::string const &id) -> PanelAction const * {
++        auto it = std::find_if(state->actions.begin(), state->actions.end(), [&](PanelAction const &action) {
++            return id == action.id;
++        });
++        return it == state->actions.end() ? nullptr : &*it;
++    };
++
++    auto contains_favorite = [state](std::string const &id) {
++        return std::find(state->favorites.begin(), state->favorites.end(), id) != state->favorites.end();
++    };
++
++    auto serialize_favorites = [state]() {
++        std::ostringstream out;
++        for (std::size_t i = 0; i < state->favorites.size(); ++i) {
++            if (i) {
++                out << ';';
++            }
++            out << state->favorites[i];
++        }
++        return out.str();
++    };
++
++    state->save_favorites = [state, serialize_favorites]() {
++        Preferences::get()->setString(favorites_pref_path, serialize_favorites());
++    };
++
++    auto load_favorites = [&]() {
++        auto stored = Preferences::get()->getString(favorites_pref_path);
++        auto push_if_valid = [&](std::string const &id) {
++            if (find_action(id) && std::find(state->favorites.begin(), state->favorites.end(), id) == state->favorites.end()) {
++                state->favorites.push_back(id);
++            }
++        };
++
++        if (!stored.empty()) {
++            std::stringstream stream(stored.raw());
++            std::string id;
++            while (std::getline(stream, id, ';')) {
++                push_if_valid(id);
++            }
++        }
++
++        if (state->favorites.empty()) {
++            for (auto const &id : state->default_favorites) {
++                push_if_valid(id);
++            }
++        }
++    };
++    load_favorites();
++
++    auto clear_grid = [](Gtk::Grid &grid) {
++        while (auto child = grid.get_first_child()) {
++            grid.remove(*child);
++        }
++    };
++
++    auto make_star_button = [state, contains_favorite](std::string const &id) {
++        auto star = Gtk::make_managed<Gtk::Button>(contains_favorite(id) ? "★" : "☆");
++        star->set_tooltip_text(contains_favorite(id) ? "从常用区移除" : "加入常用区");
++        star->add_css_class("inkstitch-floating-icon");
++        star->set_size_request(32, -1);
++        star->signal_clicked().connect([state, id] {
++            if (state->toggle_favorite) {
++                state->toggle_favorite(id);
++            }
++        });
++        return star;
++    };
++
++    auto make_catalog_card = [make_canvas_action_button, make_star_button](PanelAction const &action) {
++        auto card = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 4);
++        card->set_hexpand(true);
++        auto action_button = make_canvas_action_button(action);
++        card->append(*action_button);
++        card->append(*make_star_button(action.id));
++        return card;
++    };
++
++    auto move_favorite = [state](int source, int target) {
++        int const total = static_cast<int>(state->favorites.size());
++        if (source < 0 || source >= total || target < 0 || target > total || source == target) {
++            return;
++        }
++        auto id = state->favorites[source];
++        state->favorites.erase(state->favorites.begin() + source);
++        if (source < target) {
++            --target;
++        }
++        state->favorites.insert(state->favorites.begin() + std::clamp(target, 0, static_cast<int>(state->favorites.size())), id);
++        state->save_favorites();
++        state->render_favorites();
++        state->render_actions();
++    };
++
++    auto make_favorite_card = [state, make_canvas_action_button, move_favorite](PanelAction const &action, int index) {
++        auto card = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 4);
++        card->set_hexpand(true);
++
++        auto action_button = make_canvas_action_button(action, "inkstitch-floating-compact", true);
++        card->append(*action_button);
++
++        if (state->edit_mode) {
++            auto grip = Gtk::make_managed<Gtk::Button>("↕");
++            grip->set_tooltip_text("拖动排序");
++            grip->add_css_class("inkstitch-floating-icon");
++            card->append(*grip);
++
++            auto remove = Gtk::make_managed<Gtk::Button>("×");
++            remove->set_tooltip_text("从常用区移除");
++            remove->add_css_class("inkstitch-floating-icon");
++            remove->signal_clicked().connect([state, id = std::string(action.id)] {
++                state->favorites.erase(std::remove(state->favorites.begin(), state->favorites.end(), id), state->favorites.end());
++                state->save_favorites();
++                state->render_favorites();
++                state->render_actions();
++            });
++            card->append(*remove);
++
++            auto source = Gtk::DragSource::create();
++            source->set_actions(Gdk::DragAction::MOVE);
++            source->set_icon(Gtk::WidgetPaintable::create(*card), 0, 0);
++            source->signal_prepare().connect([index](double, double) {
++                Glib::Value<int> value;
++                value.init(G_TYPE_INT);
++                value.set(index);
++                return Gdk::ContentProvider::create(value);
++            }, false);
++            grip->add_controller(source);
++
++            auto target = Gtk::DropTarget::create(Glib::Value<int>::value_type(), Gdk::DragAction::MOVE);
++            auto card_ptr = card;
++            target->signal_drop().connect([move_favorite, card_ptr, index](Glib::ValueBase const &value, double x, double) {
++                int source_index = static_cast<Glib::Value<int> const &>(value).get();
++                int target_index = index + (x > card_ptr->get_allocated_width() / 2.0 ? 1 : 0);
++                move_favorite(source_index, target_index);
++                return true;
++            }, false);
++            card->add_controller(target);
++        }
++
++        return card;
++    };
++
++    auto favorites_header = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 6);
++    auto favorites_label = Gtk::make_managed<Gtk::Label>("常用");
++    favorites_label->set_halign(Gtk::Align::START);
++    favorites_label->set_hexpand(true);
++    auto edit_toggle = Gtk::make_managed<Gtk::ToggleButton>("编辑");
++    edit_toggle->set_tooltip_text("编辑常用按钮");
++    auto reset_button = Gtk::make_managed<Gtk::Button>("重置");
++    reset_button->set_tooltip_text("恢复默认常用按钮");
++    favorites_header->append(*favorites_label);
++    favorites_header->append(*edit_toggle);
++    favorites_header->append(*reset_button);
++
++    auto favorites_grid = Gtk::make_managed<Gtk::Grid>();
++    favorites_grid->set_row_spacing(6);
++    favorites_grid->set_column_spacing(6);
++    favorites_grid->set_column_homogeneous(true);
++    favorites_grid->set_hexpand(true);
++    state->favorites_grid = favorites_grid;
++    state->edit_toggle = edit_toggle;
++
++    auto category_box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, 4);
++    category_box->set_size_request(56, -1);
++    category_box->set_hexpand(false);
++    category_box->set_halign(Gtk::Align::START);
++    category_box->set_vexpand(true);
++    auto actions_grid = Gtk::make_managed<Gtk::Grid>();
++    actions_grid->set_row_spacing(6);
++    actions_grid->set_column_spacing(6);
++    actions_grid->set_column_homogeneous(true);
++    actions_grid->set_hexpand(true);
++    actions_grid->set_vexpand(false);
++    state->actions_grid = actions_grid;
++
++    auto actions_scroll = Gtk::make_managed<Gtk::ScrolledWindow>();
++    actions_scroll->set_child(*actions_grid);
++    actions_scroll->set_has_frame(false);
++    actions_scroll->set_policy(Gtk::PolicyType::NEVER, Gtk::PolicyType::AUTOMATIC);
++    actions_scroll->set_hexpand(true);
++    actions_scroll->set_vexpand(true);
++
++    auto action_area = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 6);
++    action_area->set_hexpand(true);
++    action_area->set_vexpand(true);
++    action_area->append(*category_box);
++    action_area->append(*actions_scroll);
++
++    auto catalog_toggle_row = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 6);
++    catalog_toggle_row->set_hexpand(true);
++    auto catalog_toggle_line_left = Gtk::make_managed<Gtk::Separator>(Gtk::Orientation::HORIZONTAL);
++    catalog_toggle_line_left->set_hexpand(true);
++    catalog_toggle_line_left->set_valign(Gtk::Align::CENTER);
++    auto catalog_toggle_content = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 4);
++    auto catalog_toggle_icon = Gtk::make_managed<Gtk::Image>();
++    catalog_toggle_icon->set_from_icon_name("pan-up-symbolic");
++    catalog_toggle_icon->set_pixel_size(16);
++    auto catalog_toggle_label = Gtk::make_managed<Gtk::Label>("更多功能");
++    catalog_toggle_content->append(*catalog_toggle_icon);
++    catalog_toggle_content->append(*catalog_toggle_label);
++    auto catalog_toggle = Gtk::make_managed<Gtk::Button>();
++    catalog_toggle->set_child(*catalog_toggle_content);
++    catalog_toggle->set_tooltip_text("收起全部菜单");
++    catalog_toggle->add_css_class("inkstitch-floating-collapse-toggle");
++    auto catalog_toggle_line_right = Gtk::make_managed<Gtk::Separator>(Gtk::Orientation::HORIZONTAL);
++    catalog_toggle_line_right->set_hexpand(true);
++    catalog_toggle_line_right->set_valign(Gtk::Align::CENTER);
++    catalog_toggle_row->append(*catalog_toggle_line_left);
++    catalog_toggle_row->append(*catalog_toggle);
++    catalog_toggle_row->append(*catalog_toggle_line_right);
++    auto catalog_collapsed = std::make_shared<bool>(false);
++    catalog_toggle->signal_clicked().connect([catalog_collapsed, catalog_toggle, catalog_toggle_icon, action_area] {
++        *catalog_collapsed = !*catalog_collapsed;
++        action_area->set_visible(!*catalog_collapsed);
++        catalog_toggle_icon->set_from_icon_name(*catalog_collapsed ? "pan-down-symbolic" : "pan-up-symbolic");
++        catalog_toggle->set_tooltip_text(*catalog_collapsed ? "展开全部菜单" : "收起全部菜单");
++    });
++
++    state->render_favorites = [state, clear_grid, find_action, make_favorite_card]() {
++        clear_grid(*state->favorites_grid);
++        int index = 0;
++        for (auto const &id : state->favorites) {
++            if (auto action = find_action(id)) {
++                auto card = make_favorite_card(*action, index);
++                state->favorites_grid->attach(*card, index % 2, index / 2);
++                ++index;
++            }
++        }
++    };
++
++    state->render_actions = [state, clear_grid, make_catalog_card]() {
++        clear_grid(*state->actions_grid);
++        int index = 0;
++        for (auto const &action : state->actions) {
++            if (state->current_category == action.category) {
++                auto card = make_catalog_card(action);
++                state->actions_grid->attach(*card, index % 2, index / 2);
++                ++index;
++            }
++        }
++
++        for (auto *button : state->category_buttons) {
++            button->set_active(button->get_label() == state->current_category);
++        }
++    };
++
++    state->toggle_favorite = [state, contains_favorite](std::string const &id) {
++        if (contains_favorite(id)) {
++            state->favorites.erase(std::remove(state->favorites.begin(), state->favorites.end(), id), state->favorites.end());
++        } else {
++            state->favorites.push_back(id);
++        }
++        state->save_favorites();
++        state->render_favorites();
++        state->render_actions();
++    };
++
++    for (auto const &category : state->categories) {
++        auto button = Gtk::make_managed<Gtk::ToggleButton>(category);
++        button->add_css_class("inkstitch-floating-tab");
++        button->set_size_request(56, -1);
++        button->set_hexpand(false);
++        button->set_halign(Gtk::Align::FILL);
++        button->set_tooltip_text(category);
++        button->signal_clicked().connect([state, category] {
++            state->current_category = category;
++            state->render_actions();
++        });
++        state->category_buttons.push_back(button);
++        category_box->append(*button);
++    }
++
++    edit_toggle->signal_toggled().connect([state] {
++        state->edit_mode = state->edit_toggle->get_active();
++        state->render_favorites();
++    });
++    reset_button->signal_clicked().connect([state] {
++        state->favorites = state->default_favorites;
++        state->save_favorites();
++        state->render_favorites();
++        state->render_actions();
++    });
++
++    state->render_favorites();
++    state->render_actions();
++
++    auto footer = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 6);
++    footer->set_halign(Gtk::Align::END);
++    footer->set_valign(Gtk::Align::END);
++    footer->set_vexpand(false);
++    footer->append(_inkstitch_preferences_button);
++    footer->append(_inkstitch_about_button);
++
++    _inkstitch_action_panel = std::make_unique<FloatingActionPanel>("Ink/Stitch", 184, 18, 560, 480, 360, 300);
++    _inkstitch_action_panel->enable_minimize("全部收起", "展开 Ink/Stitch");
++    _inkstitch_action_panel->content().append(*favorites_header);
++    _inkstitch_action_panel->content().append(*favorites_grid);
++    _inkstitch_action_panel->content().append(*catalog_toggle_row);
++    _inkstitch_action_panel->content().append(*action_area);
++    _inkstitch_action_panel->content().append(*Gtk::make_managed<Gtk::Separator>(Gtk::Orientation::HORIZONTAL));
++    _inkstitch_action_panel->content().append(*footer);
++    _inkstitch_action_panel->put_in(_canvas_overlay);
++
+     _canvas_stack = Gtk::make_managed<Inkscape::UI::Widget::Stack>();
+     _popoverbin.setChild(_canvas_stack);
+     ink_drag_setup(_dtw, _canvas_stack);
+diff --git a/src/ui/widget/canvas-grid.h b/src/ui/widget/canvas-grid.h
+index 5c59bec..b7feef3 100644
+--- a/src/ui/widget/canvas-grid.h
++++ b/src/ui/widget/canvas-grid.h
+@@ -15,6 +15,8 @@
+ #define INKSCAPE_UI_WIDGET_CANVASGRID_H
+ 
+ #include <gtkmm/gesture.h> // Gtk::EventSequenceState
++#include <gtkmm/box.h>
++#include <gtkmm/button.h>
+ #include <gtkmm/grid.h>
+ #include <gtkmm/menubutton.h>
+ #include <gtkmm/overlay.h>
+@@ -54,6 +56,7 @@ namespace Widget {
+ 
+ class Canvas;
+ class CanvasNotice;
++class FloatingActionPanel;
+ class Ruler;
+ class Stack;
+ class TabsWidget;
+@@ -140,6 +143,23 @@ private:
+     Gtk::ToggleButton _guide_lock;
+     Gtk::ToggleButton _cms_adjust;
+     Gtk::MenuButton _quick_actions;
++    std::unique_ptr<FloatingActionPanel> _file_action_panel;
++    std::unique_ptr<FloatingActionPanel> _inkstitch_action_panel;
++    Gtk::Button _document_import_button;
++    Gtk::Button _document_export_button;
++    Gtk::Button _inkstitch_params_button;
++    Gtk::Button _inkstitch_lettering_button;
++    Gtk::Button _inkstitch_auto_satin_button;
++    Gtk::Button _inkstitch_stitch_plan_button;
++    Gtk::Button _inkstitch_simulator_button;
++    Gtk::Button _inkstitch_troubleshoot_button;
++    Gtk::Button _inkstitch_cutwork_button;
++    Gtk::Button _inkstitch_sew_stack_button;
++    Gtk::Button _inkstitch_install_button;
++    Gtk::Button _inkstitch_commands_button;
++    Gtk::Button _inkstitch_lettering_path_button;
++    Gtk::Button _inkstitch_preferences_button;
++    Gtk::Button _inkstitch_about_button;
+     Glib::RefPtr<Gtk::Builder> _builder_display_popup;
+ 
+     // To be replaced by stateful Gio::Actions
+diff --git a/src/ui/widget/export-lists.cpp b/src/ui/widget/export-lists.cpp
+index 8b902b8..c13e99f 100644
+--- a/src/ui/widget/export-lists.cpp
++++ b/src/ui/widget/export-lists.cpp
+@@ -26,6 +26,10 @@
+ 
+ namespace Inkscape::UI::Dialog {
+ 
++namespace {
++constexpr auto INKSTITCH_DST_OUTPUT_ID = "org.inkstitch.output.dst";
++}
++
+ ExtensionList::ExtensionList()
+ {
+     init();
+@@ -84,6 +88,7 @@ void ExtensionList::setup()
+ 
+     Inkscape::Extension::DB::OutputList extensions;
+     Inkscape::Extension::db.get_output_list(extensions);
++    bool has_inkstitch_dst_output = false;
+     for (auto omod : extensions) {
+         auto oid = Glib::ustring(omod->get_id());
+         // if (!export_all && !omod->is_raster() && !omod->is_exported())
+@@ -91,6 +96,9 @@ void ExtensionList::setup()
+         // Comboboxes don't have a disabled row property
+         if (omod->deactivated())
+             continue;
++        if (oid == INKSTITCH_DST_OUTPUT_ID) {
++            has_inkstitch_dst_output = true;
++        }
+         this->append(oid, omod->get_filetypename());
+         // Record extensions map for filename-to-combo selections
+         auto ext = omod->get_extension();
+@@ -100,7 +108,7 @@ void ExtensionList::setup()
+             ext_to_mod[ext] = omod;
+         }
+     }
+-    this->set_active_id(SP_MODULE_KEY_RASTER_PNG);
++    this->set_active_id(has_inkstitch_dst_output ? INKSTITCH_DST_OUTPUT_ID : SP_MODULE_KEY_RASTER_PNG);
+ }
+ 
+ /**

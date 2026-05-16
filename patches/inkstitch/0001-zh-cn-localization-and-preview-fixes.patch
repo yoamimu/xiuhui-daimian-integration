@@ -1,0 +1,1231 @@
+diff --git a/lib/i18n.py b/lib/i18n.py
+index b2a2b00..6605fc9 100644
+--- a/lib/i18n.py
++++ b/lib/i18n.py
+@@ -7,6 +7,7 @@ import gettext
+ import os
+ from typing import Callable, Tuple
+ 
++from .i18n_zh_cn import translate_zh_cn
+ from .utils import cache, get_resource_dir
+ 
+ # Use N_ to mark a string for translation but _not_ immediately translate it.
+@@ -18,13 +19,41 @@ def N_(message: str) -> str:
+     return message
+ 
+ 
++def _normalize_language(language: str) -> str:
++    return language.split('.')[0].split('@')[0].replace('-', '_').lower()
++
++
++def _uses_simplified_chinese(languages=None) -> bool:
++    languages = languages or get_languages()
++    for language in languages:
++        normalized = _normalize_language(language)
++        if normalized in ("zh", "zh_cn", "zh_hans", "chinese_china"):
++            return True
++    return False
++
++
++def _with_zh_cn_fallback(gettext_func: Callable[[str], str]) -> Callable[[str], str]:
++    def gettext_with_fallback(message: str) -> str:
++        translated = gettext_func(message)
++        local_translation = translate_zh_cn(message)
++        if local_translation is not None:
++            return local_translation
++        if translated == message:
++            return message
++        return translated
++
++    return gettext_with_fallback
++
++
+ def localize(languages=None) -> Tuple[Callable[[str], str], gettext.NullTranslations]:
+     locale_dir = get_resource_dir('locales')
+ 
+     global translation, _
+ 
+-    translation = gettext.translation("inkstitch", locale_dir, fallback=True)
++    translation = gettext.translation("inkstitch", locale_dir, languages=languages, fallback=True)
+     _ = translation.gettext
++    if _uses_simplified_chinese(languages):
++        _ = _with_zh_cn_fallback(_)
+     return (_, translation)
+ 
+ 
+diff --git a/lib/threads/color.py b/lib/threads/color.py
+index 2317e07..dcaa66b 100644
+--- a/lib/threads/color.py
++++ b/lib/threads/color.py
+@@ -36,12 +36,6 @@ class ThreadColor(object):
+             they should not just be black, but we want to avoid error messages
+             '''
+             color = None
+-        elif isinstance(color, str) and color.startswith('rgb'):
+-            color = tuple(int(value) for value in color[4:-1].split(','))
+-            # remove alpha channel
+-            if len(color) == 4:
+-                color = color[:3]
+-
+         if color is None:
+             rgb = (0, 0, 0)
+         elif isinstance(color, Color):
+diff --git a/translations/messages_zh_CN.po b/translations/messages_zh_CN.po
+index 21bc505..31197a7 100644
+--- a/translations/messages_zh_CN.po
++++ b/translations/messages_zh_CN.po
+@@ -46,27 +46,27 @@ msgstr "AGS Γαραμου Garamond 包含所有拉丁字母和希腊字母，
+ #. description of font in fonts/alchemy
+ #: inkstitch-fonts-metadata.py:8
+ msgid "Alchemy is a satin font with a twist !"
+-msgstr "Alchemy 是一款带有独特设计的缎面针迹字体"
++msgstr "Alchemy 是一款带有独特设计的缎纹针迹字体"
+ 
+ #. description of font in fonts/allegria20
+ #: inkstitch-fonts-metadata.py:10
+ msgid "Running stitch font"
+-msgstr "描边针迹长度"
++msgstr "平针字体"
+ 
+ #. description of font in fonts/allegria55
+ #: inkstitch-fonts-metadata.py:12
+ msgid "Satin font"
+-msgstr "缎面字体"
++msgstr "缎纹针迹字体"
+ 
+ #. description of font in fonts/ambigue
+ #: inkstitch-fonts-metadata.py:14
+ msgid "Ambigüe is a mix of satin and bean stitch font with a subtle harmony of disorder. You may ignore the hidden black running stitches (they are the original letters) or use them to customize this font as you like."
+-msgstr "Ambigüe 是一款融合了缎面针迹与豆形针迹风格的字体，在错落之中暗藏和谐之美。你可以忽略画面中隐藏的黑色走线（即原始字母轮廓），也可借助它们随心定制这款字体。"
++msgstr "Ambigüe 是一款融合了缎纹针迹与豆形针迹风格的字体，在错落之中暗藏和谐之美。你可以忽略画面中隐藏的黑色走线（即原始字母轮廓），也可借助它们随心定制这款字体。"
+ 
+ #. description of font in fonts/amitaclo
+ #: inkstitch-fonts-metadata.py:16
+ msgid "Amitaclo is a script satin font. Every satin has zigzag underlay"
+-msgstr "Amitaclo 是一款手写风格缎面针迹字体，每个缎面针迹均配有锯齿形衬底"
++msgstr "Amitaclo 是一款手写风格缎纹针迹字体，每个缎纹针迹均配有之字形底针"
+ 
+ #. description of font in fonts/amitaclo_small
+ #: inkstitch-fonts-metadata.py:18
+@@ -96,7 +96,7 @@ msgstr "Apex Lake 是一款华丽的大型大写字母字体，仅包含 38 个
+ #. description of font in fonts/apex_simple_AGS
+ #: inkstitch-fonts-metadata.py:28
+ msgid "Apex Simple AGS is a satin companion font for Apex Lake AGS."
+-msgstr "Apex Simple AGS 是 Apex Lake AGS 的缎面针迹配套字体"
++msgstr "Apex Simple AGS 是 Apex Lake AGS 的缎纹针迹配套字体"
+ 
+ #. description of font in fonts/apex_simple_small_AGS
+ #: inkstitch-fonts-metadata.py:30
+@@ -106,7 +106,7 @@ msgstr "Apex Simple Small AGS 是 Apex Simple AGS 的改良版本，以便能够
+ #. description of font in fonts/auberge_marif
+ #: inkstitch-fonts-metadata.py:32
+ msgid "Auberge Marif is a script satin font. The glyphs cover most Western European languages."
+-msgstr "Auberge Marif 是一款手写缎面针迹字体，其字形覆盖大部分西欧语言"
++msgstr "Auberge Marif 是一款手写缎纹针迹字体，其字形覆盖大部分西欧语言"
+ 
+ #. description of font in fonts/auberge_small
+ #: inkstitch-fonts-metadata.py:34
+@@ -116,12 +116,12 @@ msgstr "Auberge Small 是 Auberge Marif 的改良版本，可实现更大幅度
+ #. description of font in fonts/aventurina
+ #: inkstitch-fonts-metadata.py:36
+ msgid "Aventurina is a script satin font. The glyphs cover most Western European languages."
+-msgstr "Aventurina 是一款手写缎面针迹字体，其字形覆盖大部分西欧语言。"
++msgstr "Aventurina 是一款手写缎纹针迹字体，其字形覆盖大部分西欧语言。"
+ 
+ #. description of font in fonts/barstitch_bold
+ #: inkstitch-fonts-metadata.py:38
+ msgid "Barstitch  Bold is a satin font."
+-msgstr "Barstitch Bold 是一款缎面针迹字体"
++msgstr "Barstitch Bold 是一款缎纹针迹字体"
+ 
+ #. description of font in fonts/barstitch_cloudy
+ #: inkstitch-fonts-metadata.py:40
+@@ -141,7 +141,7 @@ msgstr "一款大型曼陀罗字体。设计该字体所用的四个曼陀罗的
+ #. description of font in fonts/barstitch_regular
+ #: inkstitch-fonts-metadata.py:46
+ msgid "Barstitch regular is a satin font. "
+-msgstr "Barstitch Regular 是一款缎面针迹字体"
++msgstr "Barstitch Regular 是一款缎纹针迹字体"
+ 
+ #. description of font in fonts/barstitch_textured
+ #: inkstitch-fonts-metadata.py:48
+@@ -151,7 +151,7 @@ msgstr "Barstitch Textured 是一款高质感字体，借助蜿蜒填充实现
+ #. description of font in fonts/bathaus_FI
+ #: inkstitch-fonts-metadata.py:50
+ msgid "Bathaus FI is a satin font. Every satin has zigzag underlay."
+-msgstr "Bathaus FI 是一款缎面针迹字体，每个缎面针迹均配有锯齿形衬底"
++msgstr "Bathaus FI 是一款缎纹针迹字体，每个缎纹针迹均配有之字形底针"
+ 
+ #. description of font in fonts/bathaus_FI_Small
+ #: inkstitch-fonts-metadata.py:52
+@@ -161,7 +161,7 @@ msgstr "Bathaus FI Small 是 Bathaus FI 的改良版本，支持更大幅度缩
+ #. description of font in fonts/bluenesia_satin
+ #: inkstitch-fonts-metadata.py:54
+ msgid "A Syafrizal a.k.a. Khurasan jawn. 3.5mm satin at 100%, splits at higher sizes."
+-msgstr "由 Syafrizal（又名 Khurasan）设计。100% 尺寸下缎面宽度为3.5毫米，放大后会拆分"
++msgstr "由 Syafrizal（又名 Khurasan）设计。100% 尺寸下缎纹宽度为3.5毫米，放大后会拆分"
+ 
+ #. description of font in fonts/braille
+ #: inkstitch-fonts-metadata.py:56
+@@ -171,12 +171,12 @@ msgstr "专为视障人士设计的字体，采用符合 2024 年 DT INSEI 法
+ #. description of font in fonts/caesarus_SC_FI
+ #: inkstitch-fonts-metadata.py:58
+ msgid "Caesarus SC FI is a small capital satin font. It contains 107 glyphs covering most Western European languages."
+-msgstr "Caesarus SC FI 是一款小型大写字母缎面针迹字体，包含107个字形，覆盖大部分西欧语言"
++msgstr "Caesarus SC FI 是一款小型大写字母缎纹针迹字体，包含107个字形，覆盖大部分西欧语言"
+ 
+ #. description of font in fonts/caffeine_KOR
+ #: inkstitch-fonts-metadata.py:60
+ msgid "Caffeine KOR is a satin font. Every satin has zigzag underlay."
+-msgstr "Caffeine KOR 是一款缎面针迹字体，每个缎面针迹均配有锯齿形衬底"
++msgstr "Caffeine KOR 是一款缎纹针迹字体，每个缎纹针迹均配有之字形底针"
+ 
+ #. description of font in fonts/caffeine_tiny
+ #: inkstitch-fonts-metadata.py:62
+@@ -191,12 +191,12 @@ msgstr "Califragilistic 是一款三色平针字体，基于曼陀罗图案设
+ #. description of font in fonts/cats
+ #: inkstitch-fonts-metadata.py:66
+ msgid "Cats is a silly font that makes use of satin random parameters."
+-msgstr "Cats 是一款趣味字体，运用了缎面针迹随机参数"
++msgstr "Cats 是一款趣味字体，运用了缎纹针迹随机参数"
+ 
+ #. description of font in fonts/cherryforinkstitch
+ #: inkstitch-fonts-metadata.py:68
+ msgid "Cherry for inkstitch is a decorative satin column font. It contains 74 glyphs."
+-msgstr "Cherry for Inkstitch 是一款装饰性缎面柱字体，包含74个字形"
++msgstr "Cherry for Inkstitch 是一款装饰性缎纹柱字体，包含74个字形"
+ 
+ #. description of font in fonts/cherryforkaalleen
+ #: inkstitch-fonts-metadata.py:70
+@@ -207,7 +207,7 @@ msgstr "Cherry for Kaalleen 是一款大型装饰性字体，包含36个字形
+ #: inkstitch-fonts-metadata.py:72
+ #, python-format
+ msgid "Chicken Little  is a  playful decorative display font with loads of personality. There is no common baseline, no common character size and no common slope of the letters. Beyond 110% some satin columns will split."
+-msgstr "Chicken Little 是一款俏皮活泼的装饰性展示字体，极具个性。字母无统一基线、统一字号及统一倾斜角度，放大至110%以上时部分缎面柱会拆分"
++msgstr "Chicken Little 是一款俏皮活泼的装饰性展示字体，极具个性。字母无统一基线、统一字号及统一倾斜角度，放大至110%以上时部分缎纹柱会拆分"
+ 
+ #. description of font in fonts/chicken_little_small
+ #: inkstitch-fonts-metadata.py:74
+@@ -222,7 +222,7 @@ msgstr "手写风格字体"
+ #. description of font in fonts/chopin
+ #: inkstitch-fonts-metadata.py:78
+ msgid "Chopin Script is a script satin font. Every satin has zigzag underlay."
+-msgstr "Chopin Script 是一款手写风格缎面针迹字体，每个缎面针迹均配有锯齿形衬底"
++msgstr "Chopin Script 是一款手写风格缎纹针迹字体，每个缎纹针迹均配有之字形底针"
+ 
+ #. description of font in fonts/circular_3letters_monogram
+ #: inkstitch-fonts-metadata.py:80
+@@ -234,7 +234,7 @@ msgstr "输入3个字母可生成圆形三字母花押字。可添加以下字
+ #. description of font in fonts/cogs_KOR
+ #: inkstitch-fonts-metadata.py:82
+ msgid "Cogs KOR is a Steampunk  satin font."
+-msgstr "Cogs KOR 是一款蒸汽朋克风格缎面针迹字体"
++msgstr "Cogs KOR 是一款蒸汽朋克风格缎纹针迹字体"
+ 
+ #. description of font in fonts/colorful
+ #: inkstitch-fonts-metadata.py:84
+@@ -244,12 +244,12 @@ msgstr "Colorful 是一款格子纹填充字体"
+ #. description of font in fonts/computer
+ #: inkstitch-fonts-metadata.py:86
+ msgid "satin font"
+-msgstr "缎面针迹字体"
++msgstr "缎纹针迹字体"
+ 
+ #. description of font in fonts/computer_small
+ #: inkstitch-fonts-metadata.py:88
+ msgid "Small satin font: the use of both thin thread (60) and thin needle (60) is mandatory."
+-msgstr "小型缎面针迹字体：必须同时使用60号细线和60号细针"
++msgstr "小型缎纹针迹字体：必须同时使用60号细线和60号细针"
+ 
+ #. description of font in fonts/cooper_marif
+ #: inkstitch-fonts-metadata.py:90
+@@ -259,7 +259,7 @@ msgstr "CooperMarif 是一款字形宽大、风格轻盈的字体"
+ #. description of font in fonts/cyrillic
+ #: inkstitch-fonts-metadata.py:92
+ msgid "Cyrillic and latin satin font."
+-msgstr "包含西里尔字母和拉丁字母的缎面针迹字体"
++msgstr "包含西里尔字母和拉丁字母的缎纹针迹字体"
+ 
+ #. description of font in fonts/decadent_flowers_monogram
+ #: inkstitch-fonts-metadata.py:94
+@@ -269,17 +269,17 @@ msgstr "Decadent Flowers Monogram 的每个字母由可选的压平填充（适
+ #. description of font in fonts/dejavufont
+ #: inkstitch-fonts-metadata.py:96
+ msgid "DejaVu Serif Condensed is a satin font. Every satin has center-walk underlay."
+-msgstr "DejaVu Serif Condensed 是一款缎面针迹字体，每个缎面针迹均配有中心走线衬底"
++msgstr "DejaVu Serif Condensed 是一款缎纹针迹字体，每个缎纹针迹均配有中心走线底针"
+ 
+ #. description of font in fonts/digory_doodles_bean
+ #: inkstitch-fonts-metadata.py:98
+ msgid "All letters of Digory Doodles Bean mix satin and bean stitch."
+-msgstr "Digory Doodles Bean 的所有字母均融合了缎面针迹与豆形针迹"
++msgstr "Digory Doodles Bean 的所有字母均融合了缎纹针迹与豆形针迹"
+ 
+ #. description of font in fonts/dinomouse72
+ #: inkstitch-fonts-metadata.py:100
+ msgid "A Font Grove jawn. Satin width is 2.5mm at 18mm capitals"
+-msgstr "由 Font Grove 设计。大写字母高度为18毫米时，缎面宽度为2.5毫米"
++msgstr "由 Font Grove 设计。大写字母高度为18毫米时，缎纹宽度为2.5毫米"
+ 
+ #. description of font in fonts/egyptian
+ #. description of font in fonts/heavenly
+@@ -307,12 +307,12 @@ msgstr "该字体是 Eloquent 的改良版本，支持更大幅度缩小尺寸
+ #. description of font in fonts/emilio_20
+ #: inkstitch-fonts-metadata.py:110
+ msgid "Emilio 20 contains only capitals and numbers. Every satin has zigzag underlay."
+-msgstr "Emilio 20 仅包含大写字母和数字，每个缎面针迹均配有锯齿形衬底"
++msgstr "Emilio 20 仅包含大写字母和数字，每个缎纹针迹均配有之字形底针"
+ 
+ #. description of font in fonts/emilio_20_applique
+ #: inkstitch-fonts-metadata.py:112
+ msgid "Emilio 20 Applique is an Applique font. This font is an altered version (larger satin columns) of Emilio_20 while Emilio_20_Bold is  Emilio_20_applique without the applique."
+-msgstr "Emilio 20 Applique 是一款贴布绣风格字体。该字体是 Emilio_20 的修改版本（放大缎带柱结构），而 ​Emilio_20_Bold 则是移除贴布绣装饰后的 Emilio_20_Applique 基础字形。"
++msgstr "Emilio 20 Applique 是一款贴布绣风格字体。该字体是 Emilio_20 的修改版本（放大缎带柱结构），而 Emilio_20_Bold 则是移除贴布绣装饰后的 Emilio_20_Applique 基础字形。"
+ 
+ #. description of font in fonts/emilio_20_bold
+ #: inkstitch-fonts-metadata.py:114
+@@ -322,7 +322,7 @@ msgstr "Emilio_20_Bold 是 Emilio_20 的改良版本"
+ #. description of font in fonts/emilio_20_simple
+ #: inkstitch-fonts-metadata.py:116
+ msgid "Emilio is a font with capital only and numbers. Every satin has zigzag underlay."
+-msgstr "Emilio 是一款仅含大写字母和数字的字体，每个缎面针迹均配有锯齿形衬底"
++msgstr "Emilio 是一款仅含大写字母和数字的字体，每个缎纹针迹均配有之字形底针"
+ 
+ #. description of font in fonts/emilio_20_simple_small
+ #: inkstitch-fonts-metadata.py:118
+@@ -337,12 +337,12 @@ msgstr "Emilio 20 Tartan 采用格子纹填充，是一款色彩丰富的字体"
+ #. description of font in fonts/emilio_20_tricolore
+ #: inkstitch-fonts-metadata.py:122
+ msgid "Emilio 20 tricolore is a large tricolor fill stitches and satin columns font. It contains 36 glyphs including the numbers and the 26 capitals  A-Z."
+-msgstr "Emilio 20 Tricolore 是一款大型三色填充针迹与缎面柱字体，包含36个字形，涵盖数字和26个大写字母 A-Z"
++msgstr "Emilio 20 Tricolore 是一款大型三色填充针迹与缎纹柱字体，包含36个字形，涵盖数字和26个大写字母 A-Z"
+ 
+ #. description of font in fonts/excalibur_KOR
+ #: inkstitch-fonts-metadata.py:124
+ msgid "Excalibur KOR is a small satin column manuscript font. It contains 144 glyphs, covering most western European languages needs."
+-msgstr "Excalibur KOR 是一款小型缎面柱手稿字体，包含144个字形，满足大部分西欧语言使用需求"
++msgstr "Excalibur KOR 是一款小型缎纹柱手稿字体，包含144个字形，满足大部分西欧语言使用需求"
+ 
+ #. description of font in fonts/excalibur_small
+ #: inkstitch-fonts-metadata.py:126
+@@ -367,17 +367,17 @@ msgstr "Fold Ink/Stitch 是一款大型三重及五重平针大写字母字体
+ #. description of font in fonts/geneva_rounded
+ #: inkstitch-fonts-metadata.py:134
+ msgid "Geneva Simple Sans Rounded is a satin font."
+-msgstr "Geneva Simple Sans Rounded 是一款缎面针迹字体"
++msgstr "Geneva Simple Sans Rounded 是一款缎纹针迹字体"
+ 
+ #. description of font in fonts/geneva_simple
+ #: inkstitch-fonts-metadata.py:136
+ msgid "Geneva Simple Sans is a satin font."
+-msgstr "Geneva Simple Sans 是一款缎面针迹字体"
++msgstr "Geneva Simple Sans 是一款缎纹针迹字体"
+ 
+ #. description of font in fonts/gingo200
+ #: inkstitch-fonts-metadata.py:138
+ msgid "Gingo 200 is playful satin font with 158 glyphs."
+-msgstr "Gingo 200 是一款俏皮风格缎面针迹字体，包含158个字形"
++msgstr "Gingo 200 是一款俏皮风格缎纹针迹字体，包含158个字形"
+ 
+ #. description of font in fonts/glacial_tiny
+ #: inkstitch-fonts-metadata.py:140
+@@ -402,7 +402,7 @@ msgstr "大尺寸希伯来语缎带字体"
+ #. description of font in fonts/hebrew_font_medium
+ #: inkstitch-fonts-metadata.py:150
+ msgid "Medium size hebrew satin font"
+-msgstr "中号希伯来语缎面针迹字体"
++msgstr "中号希伯来语缎纹针迹字体"
+ 
+ #. description of font in fonts/hebrew_simple_rounded
+ #: inkstitch-fonts-metadata.py:152
+@@ -428,13 +428,13 @@ msgstr "InfiniPicto 是一款趣味字体，仅包含26个 A-Z 字形。每个
+ #: inkstitch-fonts-metadata.py:160
+ #, python-brace-format
+ msgid "Initials XL is a very large satin stitch Capital font. It contains the 37 glyphs :ampersand, A-Z and 0-9. In addition the ten glyphs (){}[],;.: are used to store frames. Type any letter followed by any frame (e.g. A( or B; )  to obtain a framed Capital or Number. Warning: for a few large letters you will need to manually enlarge the frame."
+-msgstr "Initials XL 是一款超大型缎面针迹大写字母字体，包含37个字形：&、A-Z 和 0-9。此外，(){}[],;.: 这十个字符用于存储边框。输入任意字母后接任意边框字符（例如 A( 或 B;），即可获得带边框的大写字母或数字。警告：部分大型字母需手动放大边框"
++msgstr "Initials XL 是一款超大型缎纹针迹大写字母字体，包含37个字形：&、A-Z 和 0-9。此外，(){}[],;.: 这十个字符用于存储边框。输入任意字母后接任意边框字符（例如 A( 或 B;），即可获得带边框的大写字母或数字。警告：部分大型字母需手动放大边框"
+ 
+ #. description of font in fonts/initials_medium
+ #: inkstitch-fonts-metadata.py:162
+ #, python-brace-format
+ msgid "Initials Medium is a satin stitch Capital font. It contains the 37 glyphs :ampersand, A-Z and 0-9. In addition the ten glyphs (){}[],;.: are used to store frames. Type any letter followed by any frame (e.g. A( or B; or 7, ) to obtain a framed Capital or Number. Some manual arranging of the frame around the letter may be required."
+-msgstr "Initials Medium 是一款缎面针迹大写字母字体，包含37个字形：&、A-Z 和 0-9。此外，(){}[],;.: 这十个字符用于存储边框。输入任意字母后接任意边框字符（例如 A(、B; 或 7,），即可获得带边框的大写字母或数字。可能需要手动调整字母周围的边框位置"
++msgstr "Initials Medium 是一款缎纹针迹大写字母字体，包含37个字形：&、A-Z 和 0-9。此外，(){}[],;.: 这十个字符用于存储边框。输入任意字母后接任意边框字符（例如 A(、B; 或 7,），即可获得带边框的大写字母或数字。可能需要手动调整字母周围的边框位置"
+ 
+ #. description of font in fonts/inkstitch_masego
+ #: inkstitch-fonts-metadata.py:164
+@@ -491,7 +491,7 @@ msgstr "十字绣字体"
+ #. description of font in fonts/magnolia_KOR
+ #: inkstitch-fonts-metadata.py:186
+ msgid "Magnolia KOR is a script satin font."
+-msgstr "Magnolia KOR 是一款手写风格缎面针迹字体"
++msgstr "Magnolia KOR 是一款手写风格缎纹针迹字体"
+ 
+ #. description of font in fonts/magnolia_bicolor
+ #: inkstitch-fonts-metadata.py:188
+@@ -516,47 +516,47 @@ msgstr "Mai en Fleur AGS 是一款花押字字体"
+ #. description of font in fonts/malika
+ #: inkstitch-fonts-metadata.py:196
+ msgid "Malika is an arabic satin font.   Non  mandatory diacritics should not be  typed within the text but   rather separately  and then manually  moved  to the correct position. The three sets of brackets host embellishments if you want to add an extra ornamental touch."
+-msgstr "Malika 是一款阿拉伯语缎面针迹字体。非强制性变音符号不应直接输入文本中，需单独输入后手动移动至正确位置。若需添加额外装饰效果，可使用三组括号存储装饰元素"
++msgstr "Malika 是一款阿拉伯语缎纹针迹字体。非强制性变音符号不应直接输入文本中，需单独输入后手动移动至正确位置。若需添加额外装饰效果，可使用三组括号存储装饰元素"
+ 
+ #. description of font in fonts/mam_script
+ #: inkstitch-fonts-metadata.py:198
+ msgid "MAM Script is a script satin font. Every satin has zigzag underlay."
+-msgstr "MAM Script 是一款手写风格缎面针迹字体，每个缎面针迹均配有锯齿形衬底"
++msgstr "MAM Script 是一款手写风格缎纹针迹字体，每个缎纹针迹均配有之字形底针"
+ 
+ #. description of font in fonts/manga_impact
+ #: inkstitch-fonts-metadata.py:200
+ msgid "Manga Impact is a manga like satin font."
+-msgstr "Manga Impact 是一款漫画风格缎面针迹字体"
++msgstr "Manga Impact 是一款漫画风格缎纹针迹字体"
+ 
+ #. description of font in fonts/medium_font
+ #: inkstitch-fonts-metadata.py:202
+ msgid "Ink/Stitch Medium Font is a basic satin font suited for medium-sized characters. Every satin has contour underlay."
+-msgstr "Ink/Stitch Medium Font 是一款基础缎面针迹字体，适用于中号字符，每个缎面针迹均配有轮廓衬底"
++msgstr "Ink/Stitch Medium Font 是一款基础缎纹针迹字体，适用于中号字符，每个缎纹针迹均配有轮廓底针"
+ 
+ #. description of font in fonts/milli_marif_bold
+ #: inkstitch-fonts-metadata.py:204
+ msgid "Millimarif-bold20 is a  bold satin font."
+-msgstr "Millimarif-bold20 是一款粗体缎面针迹字体"
++msgstr "Millimarif-bold20 是一款粗体缎纹针迹字体"
+ 
+ #. description of font in fonts/mimosa_large
+ #: inkstitch-fonts-metadata.py:206
+ msgid "Mimosa Large is a satin font that looks like a dotty font.   "
+-msgstr "Mimosa Large 是一款缎面针迹字体，外观呈点状效果"
++msgstr "Mimosa Large 是一款缎纹针迹字体，外观呈点状效果"
+ 
+ #. description of font in fonts/mimosa_medium
+ #: inkstitch-fonts-metadata.py:208
+ msgid "Mimosa Medium is a satin font that looks dotty."
+-msgstr "Mimosa Medium 是一款缎面针迹字体，外观呈点状效果"
++msgstr "Mimosa Medium 是一款缎纹针迹字体，外观呈点状效果"
+ 
+ #. description of font in fonts/monicha
+ #: inkstitch-fonts-metadata.py:210
+ msgid "Monicha is a script satin font. In addition to the glyphs covering most Western European languages it contains alternate ornemental letters with swashes. These ornemental letters should be used with caution to avoid overlays. In particular do not use two ornemental letters in a row. Please consult the documentation for information on how to access the ornemental letters."
+-msgstr "Monicha 是一款手写风格缎面针迹字体。除覆盖大部分西欧语言的字形外，还包含带花饰的备用装饰字母。使用这些装饰字母时需谨慎，避免重叠，尤其不要连续使用两个装饰字母。有关装饰字母的调用方法，请查阅文档"
++msgstr "Monicha 是一款手写风格缎纹针迹字体。除覆盖大部分西欧语言的字形外，还包含带花饰的备用装饰字母。使用这些装饰字母时需谨慎，避免重叠，尤其不要连续使用两个装饰字母。有关装饰字母的调用方法，请查阅文档"
+ 
+ #. description of font in fonts/montecarlo
+ #: inkstitch-fonts-metadata.py:212
+ msgid "Montecarlo is a script satin font with lots of alternates. It also contains  swoops , swashes and  more, see the documentation  for details."
+-msgstr "Montecarlo 是一款手写风格缎面针迹字体，包含大量备用字形，还配有曲线装饰、花饰等元素，详情请查阅文档"
++msgstr "Montecarlo 是一款手写风格缎纹针迹字体，包含大量备用字形，还配有曲线装饰、花饰等元素，详情请查阅文档"
+ 
+ #. description of font in fonts/nautical
+ #: inkstitch-fonts-metadata.py:214
+@@ -566,7 +566,7 @@ msgstr "十字绣航海旗字母表"
+ #. description of font in fonts/neon
+ #: inkstitch-fonts-metadata.py:216
+ msgid "Satin font. Each letter or accent is a single satin."
+-msgstr "缎面针迹字体，每个字母或重音符号均为独立缎面"
++msgstr "缎纹针迹字体，每个字母或重音符号均为独立缎纹针迹"
+ 
+ #. description of font in fonts/neon_blinking
+ #: inkstitch-fonts-metadata.py:218
+@@ -596,7 +596,7 @@ msgstr "Ondulamarif XL 是一款波纹针迹字体，建议尽量放大使用，
+ #. description of font in fonts/pacificlo
+ #: inkstitch-fonts-metadata.py:230
+ msgid "Pacificlo is a small satin column manuscript font. It contains 120 glyphs, covering most Western European Languages needs. "
+-msgstr "Pacificlo 是一款小型缎面柱手稿字体，包含120个字形，满足大部分西欧语言使用需求"
++msgstr "Pacificlo 是一款小型缎纹柱手稿字体，包含120个字形，满足大部分西欧语言使用需求"
+ 
+ #. description of font in fonts/pacificlo_tiny
+ #: inkstitch-fonts-metadata.py:232
+@@ -616,17 +616,17 @@ msgstr "Perspective Tricolore KOR 是一款带阴影的三色字体，仅含大
+ #. description of font in fonts/pisankris
+ #: inkstitch-fonts-metadata.py:238
+ msgid "Pisankris is a satin font. Every satin has zigzag underlay."
+-msgstr "Pisankris 是一款缎面针迹字体，每个缎面针迹均配有锯齿形衬底"
++msgstr "Pisankris 是一款缎纹针迹字体，每个缎纹针迹均配有之字形底针"
+ 
+ #. description of font in fonts/pixel10
+ #: inkstitch-fonts-metadata.py:240
+ msgid "Pixel 10 is a satin pixel font."
+-msgstr "Pixel 10 是一款缎面像素字体"
++msgstr "Pixel 10 是一款缎纹像素字体"
+ 
+ #. description of font in fonts/precious
+ #: inkstitch-fonts-metadata.py:242
+ msgid "Precious is a decorative satin column round cursive font."
+-msgstr "Precious 是一款装饰性缎面柱圆形手写字体"
++msgstr "Precious 是一款装饰性缎纹柱圆形手写字体"
+ 
+ #. description of font in fonts/priscilla
+ #: inkstitch-fonts-metadata.py:244
+@@ -636,7 +636,7 @@ msgstr "大型双色十字绣字体"
+ #. description of font in fonts/roaring_twenties_KOR
+ #: inkstitch-fonts-metadata.py:246
+ msgid "Roaring Twenties KOR is a mix of satin and bean stitches."
+-msgstr "Roaring Twenties KOR 是一款融合缎面针迹与豆形针迹的字体"
++msgstr "Roaring Twenties KOR 是一款融合缎纹针迹与豆形针迹的字体"
+ 
+ #. description of font in fonts/roaring_twenties_KOR_small
+ #: inkstitch-fonts-metadata.py:248
+@@ -646,7 +646,7 @@ msgstr "Roaring Twenties KOR Small 是 Roaring Twenties KOR 的改良版本，
+ #. description of font in fonts/roman_ags
+ #: inkstitch-fonts-metadata.py:250
+ msgid "Roman AGS is based on Latin Modern Roman 10 Bold italic. Every satin has zigzag underlay."
+-msgstr "Roman AGS 基于 Latin Modern Roman 10 Bold Italic 设计，每个缎面针迹均配有锯齿形衬底"
++msgstr "Roman AGS 基于 Latin Modern Roman 10 Bold Italic 设计，每个缎纹针迹均配有之字形底针"
+ 
+ #. description of font in fonts/roman_ags_bicolor
+ #: inkstitch-fonts-metadata.py:252
+@@ -666,12 +666,12 @@ msgstr "Ink/Stitch Small Font 适用于小型字符"
+ #. description of font in fonts/stebor_AGS
+ #: inkstitch-fonts-metadata.py:258
+ msgid "Stebor AGS is a script satin font. Every satin has zigzag underlay."
+-msgstr "Stebor AGS 是一款手写风格缎面针迹字体，每个缎面针迹均配有锯齿形衬底"
++msgstr "Stebor AGS 是一款手写风格缎纹针迹字体，每个缎纹针迹均配有之字形底针"
+ 
+ #. description of font in fonts/sunset
+ #: inkstitch-fonts-metadata.py:260
+ msgid "3 colors satin column font"
+-msgstr "三色缎面柱字体"
++msgstr "三色缎纹柱字体"
+ 
+ #. description of font in fonts/tieralphabet
+ #: inkstitch-fonts-metadata.py:262
+@@ -681,17 +681,17 @@ msgstr "十字绣字体，每个字母均包含一种德语名称以该字母开
+ #. description of font in fonts/tt_directors
+ #: inkstitch-fonts-metadata.py:264
+ msgid "TT  Directors is a satin font suited for directing."
+-msgstr "TT Directors 是一款缎面针迹字体，适用于标注说明"
++msgstr "TT Directors 是一款缎纹针迹字体，适用于标注说明"
+ 
+ #. description of font in fonts/tt_masters
+ #: inkstitch-fonts-metadata.py:266
+ msgid "TT Masters is a satin font suited for heavy typing :)"
+-msgstr "TT Masters 是一款缎面针迹字体，适用于密集排版 :)"
++msgstr "TT Masters 是一款缎纹针迹字体，适用于密集排版 :)"
+ 
+ #. description of font in fonts/venezia
+ #: inkstitch-fonts-metadata.py:268
+ msgid "A serif satin font"
+-msgstr "衬线缎面针迹字体"
++msgstr "衬线缎纹针迹字体"
+ 
+ #. description of font in fonts/venezia_small
+ #: inkstitch-fonts-metadata.py:270
+@@ -706,7 +706,7 @@ msgstr "中号十字绣字体"
+ #. description of font in fonts/violin_serif
+ #: inkstitch-fonts-metadata.py:274
+ msgid "Violin Serif is a condensed serif satin font."
+-msgstr "Violin Serif 是一款窄体衬线缎面针迹字体"
++msgstr "Violin Serif 是一款窄体衬线缎纹针迹字体"
+ 
+ #. description of font in fonts/western_light
+ #: inkstitch-fonts-metadata.py:276
+@@ -1136,35 +1136,35 @@ msgstr "自动路径结束位置"
+ #: lib/commands.py:42 inx/inkstitch_object_commands.inx:9
+ #: inx/inkstitch_remove_embroidery_settings.inx:123
+ msgid "Stop (pause machine) after sewing this object"
+-msgstr "缝制此物件后停止（暂停机器）"
++msgstr "缝制此对象后停止（暂停机器）"
+ 
+ #. #-#-#-#-#  messages-babel.po (PROJECT VERSION)  #-#-#-#-#
+ #. command attached to an object
+ #: lib/commands.py:45 inx/inkstitch_object_commands.inx:10
+ #: inx/inkstitch_remove_embroidery_settings.inx:124
+ msgid "Trim thread after sewing this object"
+-msgstr "缝制此对象后修剪线"
++msgstr "缝制此对象后剪线"
+ 
+ #. #-#-#-#-#  messages-babel.po (PROJECT VERSION)  #-#-#-#-#
+ #. command attached to an object
+ #: lib/commands.py:48 inx/inkstitch_object_commands.inx:11
+ #: inx/inkstitch_remove_embroidery_settings.inx:125
+ msgid "Ignore this object (do not stitch)"
+-msgstr "忽略此对象（不进行缝制）​"
++msgstr "忽略此对象（不进行缝制）"
+ 
+ #. #-#-#-#-#  messages-babel.po (PROJECT VERSION)  #-#-#-#-#
+ #. command attached to an object
+ #: lib/commands.py:51 inx/inkstitch_object_commands.inx:12
+ #: inx/inkstitch_remove_embroidery_settings.inx:126
+ msgid "Satin cut point (use with Cut Satin Column)"
+-msgstr "缎面切割点（与切割缎面柱一起使用）"
++msgstr "缎纹切分点（与切分缎纹柱一起使用）"
+ 
+ #. #-#-#-#-#  messages-babel.po (PROJECT VERSION)  #-#-#-#-#
+ #. command that affects a layer
+ #: lib/commands.py:54 inx/inkstitch_layer_commands.inx:7
+ #: inx/inkstitch_remove_embroidery_settings.inx:129
+ msgid "Ignore layer (do not stitch any objects in this layer)"
+-msgstr "忽略图层（不缝制此图层中的任何对象）​"
++msgstr "忽略图层（不缝制此图层中的任何对象）"
+ 
+ #. #-#-#-#-#  messages-babel.po (PROJECT VERSION)  #-#-#-#-#
+ #. command that affects entire document
+@@ -1178,8 +1178,8 @@ msgstr "导出刺绣文件的原点"
+ #: lib/commands.py:60 inx/inkstitch_global_commands.inx:9
+ #: inx/inkstitch_remove_embroidery_settings.inx:134
+ msgid "Jump destination for Stop commands (a.k.a. \"Frame Out position\")."
+-msgstr "停止命令的跳转目的地（即“框架外位置”）​\n"
+-"（执行暂停指令后针头移动至布料区域外的安全位置，防止误触损伤）。"
++msgstr "停止命令的跳针目标位置（又称“移框位置”）。\n"
++"执行暂停后针头移动到绣框外的安全位置。"
+ 
+ #: lib/commands.py:276
+ #, python-format
+@@ -1198,7 +1198,7 @@ msgstr "%(command)s: %(description)s"
+ 
+ #: lib/commands.py:368 lib/commands.py:492
+ msgid "Ink/Stitch Command"
+-msgstr "​Ink/Stitch 命令"
++msgstr "Ink/Stitch 命令"
+ 
+ #. : the name of the line that connects a command to the object it applies to
+ #: lib/commands.py:408
+@@ -1308,11 +1308,11 @@ msgstr ""
+ 
+ #: lib/elements/element.py:359
+ msgid "Tack stitch"
+-msgstr "起绣锁缝样式"
++msgstr "起绣锁针类型"
+ 
+ #: lib/elements/element.py:360
+ msgid "Tack down stitch type"
+-msgstr "选择起绣锁缝样式"
++msgstr "选择起绣锁针类型"
+ 
+ #: lib/elements/element.py:370 lib/elements/element.py:416
+ msgid "Custom path"
+@@ -1336,11 +1336,11 @@ msgstr ""
+ 
+ #: lib/elements/element.py:405
+ msgid "Lock stitch"
+-msgstr "锁缝样式"
++msgstr "锁针类型"
+ 
+ #: lib/elements/element.py:406
+ msgid "Lock stitch type"
+-msgstr "选择锁缝样式"
++msgstr "选择锁针类型"
+ 
+ #: lib/elements/element.py:417
+ msgid "Enter a custom path. For svg paths the first node will not be embroidered, but represents the last stitch of the element."
+@@ -1368,7 +1368,7 @@ msgstr "在该元素刺绣完成后剪线。"
+ 
+ #: lib/elements/element.py:462
+ msgid "Stop After"
+-msgstr "完成后停止"
++msgstr "完成后停针"
+ 
+ #: lib/elements/element.py:463
+ msgid "Add a STOP command after stitching this object."
+@@ -1416,7 +1416,7 @@ msgstr "边缘收缩"
+ 
+ #: lib/elements/fill_stitch.py:51
+ msgid "The underlay inset parameter for this fill object cannot be applied. Ink/Stitch will ignore it and will use the original size instead."
+-msgstr "此填充对象的衬底内缩参数无法应用。Ink/Stitch 将忽略此参数，并改用原始尺寸。"
++msgstr "此填充对象的底针内缩参数无法应用。Ink/Stitch 将忽略此参数，并改用原始尺寸。"
+ 
+ #: lib/elements/fill_stitch.py:56
+ msgid "Missing Guideline"
+@@ -1585,7 +1585,7 @@ msgstr ""
+ 
+ #: lib/elements/fill_stitch.py:159
+ msgid "FillStitch"
+-msgstr "填针"
++msgstr "填充针迹"
+ 
+ #: lib/elements/fill_stitch.py:162
+ msgid "Automatically routed fill stitching"
+@@ -1621,12 +1621,12 @@ msgstr "蜿蜒填充"
+ 
+ #: lib/elements/fill_stitch.py:173 inx/inkstitch_select_elements.inx:61
+ msgid "Tartan Fill"
+-msgstr "方格花纹"
++msgstr "格纹填充"
+ 
+ #: lib/elements/fill_stitch.py:174 lib/gui/tartan/embroidery_panel.py:203
+ #: inx/inkstitch_select_elements.inx:62
+ msgid "Legacy Fill"
+-msgstr "他他米"
++msgstr "旧版填充"
+ 
+ #: lib/elements/fill_stitch.py:178
+ msgid "Fill method"
+@@ -1634,7 +1634,7 @@ msgstr "填充方式"
+ 
+ #: lib/elements/fill_stitch.py:187
+ msgid "Guided Fill Strategy"
+-msgstr "导向填充策略"
++msgstr "引导填充策略"
+ 
+ #: lib/elements/fill_stitch.py:188
+ msgid "Copy"
+@@ -1812,16 +1812,16 @@ msgstr ""
+ 
+ #: lib/elements/fill_stitch.py:449 lib/elements/fill_stitch.py:720
+ msgid "Underpath"
+-msgstr "下缝"
++msgstr "底走线"
+ 
+ #: lib/elements/fill_stitch.py:450 lib/elements/fill_stitch.py:721
+ msgid "Travel inside the shape when moving from section to section.  Underpath stitches avoid traveling in the direction of the row angle so that they are not visible.  This gives them a jagged appearance."
+-msgstr ""
++msgstr "区域间移动时在形状内部走线。底走线针迹会避开行角方向，使其不易显露，但外观会呈锯齿状。"
+ 
+ #: lib/elements/fill_stitch.py:462 lib/elements/satin_column.py:389
+ #: lib/elements/stroke.py:155
+ msgid "Running stitch length"
+-msgstr "描边针迹长度"
++msgstr "平针长度"
+ 
+ #: lib/elements/fill_stitch.py:463
+ msgid "Length of stitches around the outline of the fill region used when moving from section to section. Also used for meander and circular fill."
+@@ -1829,7 +1829,7 @@ msgstr "沿轮廓运行时的针迹长度。此设定也用于蜿蜒填充和圆
+ 
+ #: lib/elements/fill_stitch.py:480 lib/elements/satin_column.py:400
+ msgid "Running stitch tolerance"
+-msgstr "描边容差"
++msgstr "平针容差"
+ 
+ #: lib/elements/fill_stitch.py:481 lib/elements/satin_column.py:401
+ msgid "Determines how hard Ink/Stitch tries to avoid stitching outside the shape.Lower numbers are less likely to stitch outside the shape but require more stitches."
+@@ -1865,7 +1865,7 @@ msgstr "描边运行次数。"
+ 
+ #: lib/elements/fill_stitch.py:544 lib/elements/stroke.py:116
+ msgid "Bean stitch number of repeats"
+-msgstr "平针次数"
++msgstr "豆形针重复次数"
+ 
+ #: lib/elements/fill_stitch.py:545 lib/elements/stroke.py:118
+ msgid "Backtrack each stitch this many times.  A value of 1 would triple each stitch (forward, back, forward).  A value of 2 would quintuple each stitch, etc.\n\n"
+@@ -1940,13 +1940,13 @@ msgstr "% (单侧)"
+ #: lib/elements/fill_stitch.py:699 lib/elements/fill_stitch.py:711
+ #: lib/elements/fill_stitch.py:724
+ msgid "Fill Underlay"
+-msgstr "打底填针"
++msgstr "填充底针"
+ 
+ #: lib/elements/fill_stitch.py:642 lib/gui/tartan/embroidery_panel.py:55
+ #: inx/inkstitch_select_elements.inx:36 inx/inkstitch_select_elements.inx:64
+ #: inx/inkstitch_select_elements.inx:66
+ msgid "Underlay"
+-msgstr "启用打底填针"
++msgstr "启用填充底针"
+ 
+ #: lib/elements/fill_stitch.py:648
+ msgid "Fill angle"
+@@ -2194,7 +2194,7 @@ msgstr ""
+ 
+ #: lib/elements/satin_column.py:61
+ msgid "Satin has no rungs"
+-msgstr "缎绣不包含横向基准线"
++msgstr "缎纹柱没有横档"
+ 
+ #: lib/elements/satin_column.py:62
+ msgid "Rungs control the stitch direction in satin columns. It is best pratice to use them."
+@@ -2280,7 +2280,7 @@ msgstr ""
+ 
+ #: lib/elements/satin_column.py:120
+ msgid "Custom satin column"
+-msgstr "定制缎面柱"
++msgstr "自定义缎纹柱"
+ 
+ #: lib/elements/satin_column.py:125
+ msgid "\"E\" Stitch"
+@@ -2479,7 +2479,7 @@ msgstr ""
+ 
+ #: lib/elements/satin_column.py:436 inx/inkstitch_fill_to_satin.inx:16
+ msgid "Contour underlay"
+-msgstr "轮廓线底层"
++msgstr "轮廓底针"
+ 
+ #: lib/elements/satin_column.py:436 lib/elements/satin_column.py:443
+ #: lib/elements/satin_column.py:457 lib/elements/satin_column.py:469
+@@ -2496,7 +2496,7 @@ msgstr ""
+ #: lib/elements/satin_column.py:450 lib/elements/satin_column.py:507
+ #: lib/elements/stroke.py:177
+ msgid "Stitch tolerance"
+-msgstr "描边容差"
++msgstr "平针容差"
+ 
+ #: lib/elements/satin_column.py:452
+ msgid "All stitches must be within this distance from the path. A lower tolerance means stitches will be closer together. A higher tolerance means sharp corners may be rounded. "
+@@ -2520,7 +2520,7 @@ msgstr ""
+ 
+ #: lib/elements/satin_column.py:493 inx/inkstitch_fill_to_satin.inx:15
+ msgid "Center-walk underlay"
+-msgstr "中心走线底层"
++msgstr "中心走线底针"
+ 
+ #: lib/elements/satin_column.py:493 lib/elements/satin_column.py:500
+ #: lib/elements/satin_column.py:515 lib/elements/satin_column.py:528
+@@ -2547,7 +2547,7 @@ msgstr ""
+ 
+ #: lib/elements/satin_column.py:545 inx/inkstitch_fill_to_satin.inx:17
+ msgid "Zig-zag underlay"
+-msgstr "锯齿形底层"
++msgstr "之字形底针"
+ 
+ #: lib/elements/satin_column.py:545 lib/elements/satin_column.py:554
+ #: lib/elements/satin_column.py:565 lib/elements/satin_column.py:585
+@@ -2594,20 +2594,20 @@ msgstr ""
+ #: lib/elements/stroke.py:51 lib/extensions/params.py:633
+ #: inx/inkstitch_select_elements.inx:12
+ msgid "Stroke"
+-msgstr "轮廓线"
++msgstr "描边"
+ 
+ #: lib/elements/stroke.py:54 lib/extensions/params.py:312
+ msgid "Running stitch along paths"
+-msgstr "沿路径描边"
++msgstr "沿路径平针"
+ 
+ #: lib/elements/stroke.py:76
+ msgid "Running Stitch / Bean Stitch"
+-msgstr "平针/三刺绣平针"
++msgstr "平针/豆形针"
+ 
+ #: lib/elements/stroke.py:77 lib/lettering/categories.py:26
+ #: inx/inkstitch_lettering_generate_json.inx:70
+ msgid "Ripple Stitch"
+-msgstr "螺旋针"
++msgstr "波纹针迹"
+ 
+ #: lib/elements/stroke.py:78 inx/inkstitch_select_elements.inx:23
+ msgid "ZigZag Stitch"
+@@ -2838,11 +2838,11 @@ msgstr "Ink/Stitch 无法处理文本等对象。"
+ 
+ #: lib/elements/text.py:16
+ msgid "* Text: Create your own letters or try the lettering tool:"
+-msgstr "*文本：创建自己的字母或尝试刻字工具："
++msgstr "*文本：创建自己的字母或尝试文字刺绣工具："
+ 
+ #: lib/elements/text.py:17
+ msgid "- Extensions > Ink/Stitch > Lettering"
+-msgstr "- 扩展 > Ink/Stitch > 刻字"
++msgstr "- 扩展 > Ink/Stitch > 文字刺绣"
+ 
+ #: lib/elements/utils/stroke_to_satin.py:97
+ msgid "Ink/Stitch cannot convert your stroke into a satin column. Please break up your path and try again."
+@@ -2923,16 +2923,16 @@ msgstr "自动路线"
+ 
+ #: lib/extensions/auto_satin.py:36
+ msgid "Please ensure that at most one start and end command is attached to the selected satin columns."
+-msgstr "请确保最多有一个开始和结束命令附加到选定的缎面柱。"
++msgstr "请确保最多有一个开始和结束命令附加到选定的缎纹柱。"
+ 
+ #. auto-route satin columns extension
+ #: lib/extensions/auto_satin.py:50
+ msgid "Please select one or more satin columns."
+-msgstr "请选择一段或多段缎面柱。"
++msgstr "请选择一段或多段缎纹柱。"
+ 
+ #: lib/extensions/auto_satin.py:55 lib/extensions/satin_multicolor.py:34
+ msgid "Please select at least one satin column."
+-msgstr "请至少选择一段缎面柱。"
++msgstr "请至少选择一段缎纹柱。"
+ 
+ #. This was previously: "No embroiderable paths selected."
+ #: lib/extensions/base.py:56
+@@ -2978,7 +2978,7 @@ msgstr ""
+ #: lib/extensions/batch_lettering.py:211 lib/extensions/lettering.py:60
+ #: lib/extensions/lettering.py:71
+ msgid "Ink/Stitch Lettering"
+-msgstr "Ink/Stitch 刻字"
++msgstr "Ink/Stitch 文字刺绣"
+ 
+ #: lib/extensions/batch_lettering.py:217 lib/gui/lettering/main_panel.py:317
+ msgid "scale"
+@@ -3014,7 +3014,7 @@ msgstr ""
+ 
+ #: lib/extensions/cut_satin.py:30
+ msgid "Please select one or more satin columns to cut."
+-msgstr "请选择一根或多根缎面柱进行切割。"
++msgstr "请选择一根或多根缎纹柱进行切割。"
+ 
+ #: lib/extensions/cutwork_segmentation.py:83
+ msgid "Please select at least one element with a stroke color."
+@@ -3069,7 +3069,7 @@ msgstr "类型"
+ 
+ #: lib/extensions/element_info.py:67
+ msgid "Fill Method"
+-msgstr "填针针迹类型"
++msgstr "填充针法"
+ 
+ #: lib/extensions/element_info.py:75
+ msgid "Satin Method"
+@@ -3179,7 +3179,7 @@ msgstr ""
+ 
+ #: lib/extensions/flip.py:28
+ msgid "Please select one or more satin columns to flip."
+-msgstr "请选择一个或多个缎面柱来翻转。"
++msgstr "请选择一个或多个缎纹柱来翻转。"
+ 
+ #: lib/extensions/generate_palette.py:31
+ msgid "Please specify a name for your color palette."
+@@ -3380,7 +3380,7 @@ msgstr "请选择一个或多个对象以附加命令。"
+ 
+ #: lib/extensions/object_commands.py:33
+ msgid "Please choose one or more commands to attach."
+-msgstr "请选择一个或多个要附加的命令​。"
++msgstr "请选择一个或多个要附加的命令。"
+ 
+ #: lib/extensions/object_commands.py:40
+ #, python-brace-format
+@@ -3389,7 +3389,7 @@ msgid "Cannot attach commands to Clone element(s) {clones}. They must be unlinke
+ "* Run: Extensions > Ink/Stitch > Edit > Unlink Clone"
+ msgstr "无法向克隆元素 {克隆元素} 附加命令。必须解除克隆链接后才能添加命令。\n"
+ "选择克隆元素\n"
+-"菜单路径：​扩展 (Extensions) > Ink/Stitch > 编辑 (Edit) > 解除克隆链接 (Unlink Clone)"
++"菜单路径：扩展 (Extensions) > Ink/Stitch > 编辑 (Edit) > 解除克隆链接 (Unlink Clone)"
+ 
+ #: lib/extensions/outline.py:30
+ msgid "Please select one or more shapes to convert to their outline."
+@@ -3442,7 +3442,7 @@ msgstr "禁用该页设定将同时禁用后续页设定。"
+ #: lib/extensions/params.py:350
+ #, python-format
+ msgid "Enabling this tab will disable %s and vice-versa."
+-msgstr "​启用此选项卡将禁用%s，反之亦然。"
++msgstr "启用此选项卡将禁用%s，反之亦然。"
+ 
+ #: lib/extensions/params.py:430
+ msgid "Inkscape objects"
+@@ -3525,7 +3525,7 @@ msgstr ""
+ 
+ #: lib/extensions/redwork.py:184
+ msgid "Redwork Underpath"
+-msgstr ""
++msgstr "红线绣底走线"
+ 
+ #: lib/extensions/reorder.py:18
+ msgid "Please select at least two elements to reorder."
+@@ -3573,7 +3573,7 @@ msgstr ""
+ 
+ #: lib/extensions/sew_stack_editor.py:95
+ msgid "Only sew the Sew Stack layers, and ignore settings from Params"
+-msgstr "仅缝制堆叠层，忽略参数中的设置"
++msgstr "仅缝制“缝制堆栈”图层，并忽略“刺绣参数”中的设置"
+ 
+ #: lib/extensions/sew_stack_editor.py:195
+ msgid "Preview selected layer"
+@@ -3618,13 +3618,13 @@ msgstr ""
+ 
+ #: lib/extensions/stroke_to_satin.py:28
+ msgid "Please select at least one line to convert to a satin column."
+-msgstr "请至少选择一行以转换为缎面柱。"
++msgstr "请至少选择一行以转换为缎纹柱。"
+ 
+ #. : Convert To Satin extension, user selected only objects that were not
+ #. lines.
+ #: lib/extensions/stroke_to_satin.py:64
+ msgid "Only simple lines may be converted to satin columns."
+-msgstr "只有简单的线条可以转换为缎面柱。"
++msgstr "只有简单的线条可以转换为缎纹柱。"
+ 
+ #: lib/extensions/tartan.py:66
+ msgid "To create a tartan pattern please select at least one element with a fill color."
+@@ -3707,7 +3707,7 @@ msgstr ""
+ #: inx/inkstitch_select_elements.inx:91 inx/inkstitch_troubleshoot.inx:37
+ #: inx/inkstitch_update_svg.inx:11
+ msgid "Troubleshoot"
+-msgstr ""
++msgstr "故障排查"
+ 
+ #: lib/extensions/troubleshoot.py:162 lib/extensions/troubleshoot.py:209
+ #: inx/inkstitch_troubleshoot.inx:11
+@@ -4478,8 +4478,7 @@ msgstr ""
+ 
+ #: lib/gui/lettering/option_panel.py:159
+ msgid "Uses command symbols if enabled. When disabled inserts trim commands as params."
+-msgstr "启用命令符号​（Uses command symbols if enabled）\n"
+-"（默认启用，以图标形式显示命令；禁用时，修剪命令将以参数形式插入代码）"
++msgstr "启用时使用命令符号。禁用时将剪线命令作为参数插入。"
+ 
+ #: lib/gui/lettering/option_panel.py:178
+ msgid "Embroidery settings"
+@@ -5264,7 +5263,7 @@ msgstr ""
+ #: lib/lettering/font.py:123 lib/lettering/font.py:132
+ msgid "Generate the JSON file through:\n"
+ "Extensions > Ink/Stitch > Font Management > Generate JSON..."
+-msgstr "​首次生成JSON文件\n"
++msgstr "首次生成JSON文件\n"
+ "路径：扩展 (Extensions) > Ink/Stitch > 字体管理 (Font Management) > 生成JSON (Generate JSON...)"
+ 
+ #: lib/lettering/font.py:130
+@@ -5437,21 +5436,21 @@ msgstr "自动运行 %d"
+ #: lib/stitches/auto_run.py:276
+ #, python-format
+ msgid "AutoRun Underpath %d"
+-msgstr "自动下缝 %d"
++msgstr "自动平针底走线 %d"
+ 
+ #. Label for a satin column created by Auto-Route Satin Columns and Lettering
+ #. extensions
+ #: lib/stitches/auto_satin.py:609
+ #, python-format
+ msgid "AutoSatin %d"
+-msgstr "自动平包针 %d"
++msgstr "自动缎纹 %d"
+ 
+ #. Label for running stitch (underpathing) created by Auto-Route Satin Columns
+ #. amd Lettering extensions
+ #: lib/stitches/auto_satin.py:612
+ #, python-format
+ msgid "AutoSatin Running Stitch %d"
+-msgstr "自动平包针运行针迹 %d"
++msgstr "自动缎纹平针 %d"
+ 
+ #: lib/stitches/meander_fill.py:32
+ msgid "Could not build graph for meander stitching. Try to enlarge your shape or scale your meander pattern down."
+@@ -5459,7 +5458,7 @@ msgstr ""
+ 
+ #: lib/svg/rendering.py:230 inx/inkstitch_stitch_plan_preview.inx:16
+ msgid "Stitch Plan"
+-msgstr "针迹预设"
++msgstr "针迹方案"
+ 
+ #: lib/svg/units.py:18
+ #, python-format
+@@ -5962,7 +5961,7 @@ msgstr "Sunstar 或 Barudan 刺绣格式"
+ #. description for pystitch file format: dsb
+ #: pystitch-format-descriptions.py:34
+ msgid "Tajima(Barudan) Embroidery Format"
+-msgstr "田岛（Barudan）刺绣格式"
++msgstr "Tajima（Barudan）刺绣格式"
+ 
+ #. description for pystitch file format: dsz
+ #: pystitch-format-descriptions.py:36
+@@ -6144,7 +6143,7 @@ msgstr ""
+ #: inx/inkstitch_install_custom_palette.inx:28
+ #: inx/inkstitch_palette_split_text.inx:11 inx/inkstitch_palette_to_text.inx:11
+ msgid "Thread Color Management"
+-msgstr ""
++msgstr "线色管理"
+ 
+ #: inx/inkstitch_apply_threadlist.inx:3
+ msgid "Apply Threadlist"
+@@ -6248,7 +6247,7 @@ msgstr ""
+ 
+ #: inx/inkstitch_auto_run.inx:34
+ msgid "Use Start- end end commands to define where auto-routing for running stitch should start and end."
+-msgstr "使用起始与结束命令，定义连续缝线（Running Stitch）的自动路径起点和终点。​"
++msgstr "使用起始与结束命令，定义连续缝线（Running Stitch）的自动路径起点和终点。"
+ 
+ #: inx/inkstitch_auto_run.inx:36
+ msgid "More info on our website:"
+@@ -6260,8 +6259,8 @@ msgstr ""
+ 
+ #: inx/inkstitch_auto_satin.inx:3
+ msgid "Auto-Route Satin Columns"
+-msgstr "自动路由缎面柱\n"
+-"（自动规划缎面针迹的缝制路径，优化刺绣顺序）"
++msgstr "自动布线缎纹柱\n"
++"（自动规划缎纹针迹的缝制路径，优化刺绣顺序）"
+ 
+ #: inx/inkstitch_auto_satin.inx:9
+ msgid "Preserve order of satin columns"
+@@ -6526,7 +6525,7 @@ msgstr ""
+ 
+ #: inx/inkstitch_commands_scale_symbols.inx:3
+ msgid "Scale Command Symbols"
+-msgstr "缩放命令符号​（Scale Command Symbols）"
++msgstr "缩放命令符号（Scale Command Symbols）"
+ 
+ #: inx/inkstitch_commands_scale_symbols.inx:6
+ msgid "Size (%)"
+@@ -6534,7 +6533,7 @@ msgstr "大小 (%)"
+ 
+ #: inx/inkstitch_commands_scale_symbols.inx:10
+ msgid "Adjust all command symbol sizes at once"
+-msgstr "统一调整所有命令符号大小​"
++msgstr "统一调整所有命令符号大小"
+ 
+ #: inx/inkstitch_commands_scale_symbols.inx:13
+ #: inx/inkstitch_global_commands.inx:19 inx/inkstitch_jump_to_trim.inx:12
+@@ -6558,8 +6557,8 @@ msgstr ""
+ 
+ #: inx/inkstitch_cut_satin.inx:3
+ msgid "Cut Satin Column"
+-msgstr "切割缎面柱\n"
+-"（将连续缎面针迹分割为多段，便于分色或调整密度）"
++msgstr "切分缎纹柱\n"
++"（将连续缎纹针迹分割为多段，便于分色或调整密度）"
+ 
+ #: inx/inkstitch_cut_satin.inx:9
+ msgid "Split a satin column and keep Ink/Stitch settings"
+@@ -6567,7 +6566,7 @@ msgstr ""
+ 
+ #: inx/inkstitch_cutwork_segmentation.inx:3
+ msgid "Cutwork segmentation"
+-msgstr ""
++msgstr "镂空绣分段"
+ 
+ #: inx/inkstitch_cutwork_segmentation.inx:9
+ msgid "Splits a path into cutwork segments according to cut angle"
+@@ -6712,11 +6711,11 @@ msgstr ""
+ #: inx/inkstitch_stitch_plan_preview.inx:55
+ #: inx/inkstitch_stitch_plan_preview_undo.inx:11
+ msgid "Visualize and Export"
+-msgstr ""
++msgstr "预览与导出"
+ 
+ #: inx/inkstitch_display_stacking_order.inx:3
+ msgid "Display stacking order"
+-msgstr ""
++msgstr "显示堆叠顺序"
+ 
+ #: inx/inkstitch_display_stacking_order.inx:9
+ msgid "Font size"
+@@ -6736,7 +6735,7 @@ msgstr ""
+ 
+ #: inx/inkstitch_duplicate_params.inx:3
+ msgid "Duplicate Params"
+-msgstr "重复参数"
++msgstr "复制刺绣参数"
+ 
+ #: inx/inkstitch_duplicate_params.inx:9
+ msgid "Applies params from first selected element to the rest of the selection"
+@@ -6808,7 +6807,7 @@ msgstr ""
+ 
+ #: inx/inkstitch_flip.inx:3
+ msgid "Flip Satin Column Rails"
+-msgstr "翻转缎面立柱导轨"
++msgstr "翻转缎纹柱轨道"
+ 
+ #: inx/inkstitch_generate_palette.inx:3
+ msgid "Generate Color Palette"
+@@ -6961,7 +6960,7 @@ msgstr ""
+ 
+ #: inx/inkstitch_input_DAT.inx:8
+ msgid "Ink/Stitch: Sunstar or Barudan Embroidery Format (.dat)"
+-msgstr "Ink/Stitch：Sunstar 或 Barudan 刺绣格式 (.dat)"
++msgstr "Ink/Stitch: Sunstar 或 Barudan 刺绣格式 (.dat)"
+ 
+ #: inx/inkstitch_input_DAT.inx:9
+ msgid "convert DAT file to Ink/Stitch manual-stitch paths"
+@@ -7177,7 +7176,7 @@ msgstr ""
+ 
+ #: inx/inkstitch_input_KSM.inx:8
+ msgid "Ink/Stitch: Pfaff Embroidery Format (.ksm)"
+-msgstr "Ink/Stitch：Pfaff 刺绣格式 (.ksm)"
++msgstr "Ink/Stitch: Pfaff 刺绣格式 (.ksm)"
+ 
+ #: inx/inkstitch_input_KSM.inx:9
+ msgid "convert KSM file to Ink/Stitch manual-stitch paths"
+@@ -7405,7 +7404,7 @@ msgstr ""
+ 
+ #: inx/inkstitch_input_STX.inx:8
+ msgid "Ink/Stitch: Data Stitch Embroidery Format (.stx)"
+-msgstr "nk/Stitch：数据针迹刺绣格式 (.stx)"
++msgstr "Ink/Stitch: Data Stitch 刺绣格式 (.stx)"
+ 
+ #: inx/inkstitch_input_STX.inx:9
+ msgid "convert STX file to Ink/Stitch manual-stitch paths"
+@@ -7497,7 +7496,7 @@ msgstr ""
+ 
+ #: inx/inkstitch_install.inx:3
+ msgid "Install Addons for Inkscape"
+-msgstr ""
++msgstr "安装 Inkscape 附加资源"
+ 
+ #: inx/inkstitch_install.inx:10
+ msgid "Install thread color palettes"
+@@ -7757,7 +7756,7 @@ msgstr "添加影响所选图层的命令"
+ 
+ #: inx/inkstitch_lettering.inx:3
+ msgid "Lettering Tool"
+-msgstr ""
++msgstr "文字刺绣工具"
+ 
+ #: inx/inkstitch_lettering.inx:9
+ msgid "Insert ready-to-embroider text into the document"
+@@ -7765,7 +7764,7 @@ msgstr ""
+ 
+ #: inx/inkstitch_lettering.inx:12 inx/inkstitch_lettering_along_path.inx:12
+ msgid "Lettering"
+-msgstr ""
++msgstr "文字刺绣"
+ 
+ #: inx/inkstitch_lettering_along_path.inx:9
+ msgid "Shapes a line of text onto a path"
+@@ -8807,7 +8806,7 @@ msgstr "移除参数"
+ 
+ #: inx/inkstitch_remove_embroidery_settings.inx:11
+ msgid "Removes params from selected objects or all objects if nothing is selected."
+-msgstr "​移除选定对象的参数；若未选择对象，则移除所有对象的参数"
++msgstr "移除选定对象的参数；若未选择对象，则移除所有对象的参数"
+ 
+ #: inx/inkstitch_remove_embroidery_settings.inx:13
+ #: inx/inkstitch_remove_embroidery_settings.inx:118
+@@ -8844,7 +8843,7 @@ msgstr ""
+ 
+ #: inx/inkstitch_satin_multicolor.inx:3
+ msgid "Multicolor Satin"
+-msgstr "多色缎面"
++msgstr "多色缎纹"
+ 
+ #: inx/inkstitch_satin_multicolor.inx:9
+ msgid "Generates a multicolor satin"
+@@ -8897,11 +8896,11 @@ msgstr ""
+ 
+ #: inx/inkstitch_select_elements.inx:18
+ msgid "Underpath (Redwork/Auto-Run)"
+-msgstr ""
++msgstr "底走线（红线绣/自动平针）"
+ 
+ #: inx/inkstitch_select_elements.inx:19
+ msgid "Underpath (Auto-Satin)"
+-msgstr ""
++msgstr "底走线（自动缎纹）"
+ 
+ #: inx/inkstitch_select_elements.inx:22
+ msgid "Ripples"
+@@ -8962,7 +8961,7 @@ msgstr ""
+ 
+ #: inx/inkstitch_select_elements.inx:64
+ msgid "Only select fills with this underlay"
+-msgstr "仅选择带此底层的填充区域"
++msgstr "仅选择带此底针的填充区域"
+ 
+ #: inx/inkstitch_select_elements.inx:67
+ msgid "No Underlay"
+@@ -9042,15 +9041,15 @@ msgstr ""
+ 
+ #: inx/inkstitch_sew_stack_editor.inx:3
+ msgid "Sew Stack (preview)..."
+-msgstr ""
++msgstr "缝制堆栈（预览）..."
+ 
+ #: inx/inkstitch_simulator.inx:3
+ msgid "Simulator"
+-msgstr ""
++msgstr "模拟器"
+ 
+ #: inx/inkstitch_stitch_plan_preview.inx:3
+ msgid "Stitch Plan Preview"
+-msgstr ""
++msgstr "针迹方案预览"
+ 
+ #: inx/inkstitch_stitch_plan_preview.inx:15
+ msgid "Render Mode"
+@@ -9118,11 +9117,11 @@ msgstr ""
+ 
+ #: inx/inkstitch_stitch_plan_preview_undo.inx:3
+ msgid "Undo Stitch Plan Preview"
+-msgstr "撤消针迹计划预览"
++msgstr "撤销针迹方案预览"
+ 
+ #: inx/inkstitch_stroke_to_lpe_satin.inx:3
+ msgid "Stroke to Live Path Effect Satin"
+-msgstr "锯齿线转换为缎面"
++msgstr "描边转实时路径效果缎纹"
+ 
+ #: inx/inkstitch_stroke_to_lpe_satin.inx:8
+ msgid "Converts a stroke into a satin stitch with a changeable life path effect."
+@@ -9541,4 +9540,3 @@ msgstr "访问我们的网站了解更多信息："
+ #: inx/inkstitch_zip.inx:70
+ msgid "https://inkstitch.org/docs/import-export/#batch-export"
+ msgstr ""
+-
