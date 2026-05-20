@@ -1,0 +1,58 @@
+# Brewfile for 绣绘呆棉整合版 macOS build (Apple Silicon, macOS 26+ "Tahoe")
+#
+# Used by scripts/macos/00-bootstrap.sh via `brew bundle install --file=Brewfile`.
+#
+# Versions are intentionally NOT pinned with @-suffixes here. macOS 26 just
+# released and Homebrew bottles for Inkscape's GTK4 stack are being actively
+# updated. We rely on `brew bundle install --upgrade` semantics and treat any
+# version-related build break as a separate fix-up commit (see README_macOS.md
+# "如果构建失败" section for the recommended pin procedure).
+
+# --- toolchain ---
+brew "cmake"
+brew "ninja"
+brew "pkg-config"
+brew "meson"
+brew "ccache"
+brew "git"
+brew "create-dmg"     # used by 05-make-dmg.sh
+brew "jq"             # used by 03-build-inkstitch.sh
+
+# --- Inkscape required deps ---
+brew "boost"
+brew "double-conversion"
+brew "bdw-gc"
+brew "gsl"
+brew "gtk4"
+brew "gtkmm4"
+brew "libxslt"
+brew "gettext"
+
+# --- Inkscape optional deps (matches msys2installdeps.sh "optional" block) ---
+brew "enchant"
+brew "graphicsmagick"
+brew "gtksourceview5"
+brew "libheif"
+brew "libcdr"
+brew "jpeg-xl"
+brew "libspelling"
+brew "libvisio"
+brew "libwpg"
+brew "poppler"
+brew "potrace"
+
+# --- Python runtime + Inkscape extension deps ---
+brew "python@3.13"
+brew "py3cairo"
+brew "pygobject3"
+brew "scour"
+
+# --- Ink/Stitch macOS build deps (matches inkstitch .github/workflows/build.yml macarm64 job) ---
+brew "geos"
+brew "libffi"
+brew "gnu-getopt"
+brew "libiconv"
+brew "libwebp"
+brew "pango"
+brew "cairo"
+brew "gobject-introspection"
