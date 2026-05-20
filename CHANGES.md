@@ -17,4 +17,5 @@ Changes:
 - Added Simplified Chinese terminology reference for embroidery-related UI.
 - Prioritized DST export workflow for embroidery use.
 - Added color parsing robustness for local Ink/Stitch parameter preview.
+- Added macOS (Apple Silicon, macOS 26+) integrated dmg build pipeline under `scripts/macos/` (Homebrew-based, ad-hoc signed, unnotarized).
 
