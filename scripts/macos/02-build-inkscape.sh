@@ -25,7 +25,7 @@ INSTALL_PREFIX="${BUILD_DIR}/install"
 
 # Pull Homebrew prefixes for paths and pkg-config.
 eval "$(/opt/homebrew/bin/brew shellenv)"
-export PKG_CONFIG_PATH="$(brew --prefix libffi)/lib/pkgconfig:$(brew --prefix gettext)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+export PKG_CONFIG_PATH="$(brew --prefix)/Library/Homebrew/os/mac/pkgconfig/26:$(brew --prefix icu4c@77)/lib/pkgconfig:$(brew --prefix libffi)/lib/pkgconfig:$(brew --prefix gettext)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 export PATH="$(brew --prefix gettext)/bin:${PATH}"
 
 # Deployment target: match the build host major version. macOS 26+ users
@@ -88,6 +88,13 @@ for d in share lib etc; do
         cp -a "${INSTALL_PREFIX}/${d}" "${APP_OUT}/Contents/Resources/"
     fi
 done
+
+# Inkscape's rpath on macOS also looks for libs at Contents/lib/ (not just
+# Contents/Resources/lib/). Duplicate lib there so the binary can find
+# libinkscape_base at runtime.
+if [[ -d "${INSTALL_PREFIX}/lib" ]]; then
+    cp -a "${INSTALL_PREFIX}/lib" "${APP_OUT}/Contents/"
+fi
 
 # Drop in upstream Info.plist verbatim; 04-bundle.sh will rewrite the
 # branding-related keys (bundle id, name, version) afterwards.

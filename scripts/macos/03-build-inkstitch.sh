@@ -25,7 +25,7 @@ INKSTITCH_SRC="${PREVIEW_ROOT}/src/inkstitch"
 [[ -d "${INKSTITCH_SRC}/.git" ]] || _die "Ink/Stitch clone not found at ${INKSTITCH_SRC}."
 
 eval "$(/opt/homebrew/bin/brew shellenv)"
-export PKG_CONFIG_PATH="$(brew --prefix libffi)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+export PKG_CONFIG_PATH="$(brew --prefix)/Library/Homebrew/os/mac/pkgconfig/26:$(brew --prefix libffi)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 export PATH="$(brew --prefix gnu-getopt)/bin:${PATH}"
 
 # Ink/Stitch's build scripts expect a `python` on PATH. Pin to the brew
@@ -44,6 +44,7 @@ fi
 source "${VENV_DIR}/bin/activate"
 python -m pip install --upgrade pip wheel
 python -m pip install -r "${INKSTITCH_SRC}/requirements.txt"
+python -m pip install pyinstaller
 
 # Version stamp for the dist artefacts. CHANGES.md "Unreleased" → use
 # the integration repo's short SHA + timestamp so re-builds are unique.
