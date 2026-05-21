@@ -62,9 +62,20 @@ if command -v create-dmg >/dev/null 2>&1; then
         --app-drop-link 540 240 \
         --icon "首次打开说明.txt" 360 380 \
         --hide-extension "Inkscape-绣绘呆棉版.app" \
-        "${EXTRA_BG[@]}" \
+        ${EXTRA_BG[@]+"${EXTRA_BG[@]}"} \
         "${DMG_OUT}" \
-        "${STAGE}/"
+        "${STAGE}/" || true
+
+    # macOS 26: create-dmg 常因 AppleScript 美化窗口超时退出非 0，但 dmg
+    # 已写出，只是名字带 rw.<pid>. 临时前缀。检测并重命名。
+    if [ ! -f "${DMG_OUT}" ]; then
+        RW=$(ls -t "$(dirname "${DMG_OUT}")"/rw.*."$(basename "${DMG_OUT}")" 2>/dev/null | head -1)
+        if [ -n "${RW}" ] && [ -f "${RW}" ]; then
+            _log "Detected create-dmg AppleScript timeout; renaming ${RW} -> ${DMG_OUT}"
+            mv -f "${RW}" "${DMG_OUT}"
+        fi
+    fi
+    [ -f "${DMG_OUT}" ] || _die "dmg 未生成: ${DMG_OUT}"
 else
     _log "create-dmg not installed; falling back to plain hdiutil dmg."
     ln -s /Applications "${STAGE}/Applications"
