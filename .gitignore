@@ -21,3 +21,13 @@ __pycache__/
 /.env
 *.log
 
+# Handoff documents for one-off AI sessions on other machines (not part of the project)
+/HANDOFF_*.md
+
+# Cross-machine snapshot dropoff (mac AI hands patches/diffs back through this)
+/mac-build-snapshot/
+
+# macOS resource-fork / metadata files that leak through SMB / USB copies
+._*
+.DS_Store
+
