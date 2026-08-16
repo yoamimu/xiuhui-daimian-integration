@@ -18,4 +18,7 @@ Changes:
 - Prioritized DST export workflow for embroidery use.
 - Added color parsing robustness for local Ink/Stitch parameter preview.
 - Added macOS (Apple Silicon, macOS 26+) integrated dmg build pipeline under `scripts/macos/` (Homebrew-based, ad-hoc signed, unnotarized).
+- Added dual-arch macOS build support (arm64 + x86_64), Developer ID signing + notarization (`06-notarize.sh`), and GitHub Actions CI workflow.
+- Fixed macOS crash-on-launch: bundled GTK4's Adwaita icon theme into the `.app` (previously missing, causing SIGSEGV in `gtk_icon_theme_lookup_icon`).
+- Fixed dmg naming bug: `create-dmg` icon layout now uses the arch-suffixed app name, and stale `rw.*.dmg` intermediates are cleaned up.
 

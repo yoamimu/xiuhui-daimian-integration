@@ -13,6 +13,7 @@
 set -euo pipefail
 
 _log()  { printf '\033[1;34m[02-inkscape]\033[0m %s\n' "$*"; }
+_warn() { printf '\033[1;33m[02-inkscape]\033[0m %s\n' "$*" >&2; }
 _die()  { printf '\033[1;31m[02-inkscape]\033[0m %s\n' "$*" >&2; exit 1; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -123,6 +124,24 @@ cp -a "${INKSCAPE_SRC}/packaging/macos/res/." \
 # fonts.conf for fontconfig
 cp -f "${INKSCAPE_SRC}/packaging/macos/res/fonts.conf" \
       "${APP_OUT}/Contents/Resources/" 2>/dev/null || true
+
+# ---- GTK4 Adwaita icon theme (CRITICAL) ----
+# GTK4 requires the Adwaita icon theme at runtime. Without it,
+# gtk_icon_theme_lookup_icon crashes with SIGSEGV during startup
+# (ensure_valid_themes -> real_choose_icon) on macOS. Inkscape's own
+# build only ships the `hicolor` theme, so we must bundle Adwaita from
+# Homebrew (adwaita-icon-theme, installed via Brewfile).
+ADWAITA_SRC="${BREW_PREFIX}/share/icons/Adwaita"
+ADWAITA_DST="${APP_OUT}/Contents/Resources/share/icons/Adwaita"
+if [[ -d "${ADWAITA_SRC}" ]]; then
+    _log "Bundling Adwaita icon theme (required by GTK4) ..."
+    mkdir -p "$(dirname "${ADWAITA_DST}")"
+    rm -rf "${ADWAITA_DST}"
+    cp -a "${ADWAITA_SRC}" "${ADWAITA_DST}"
+else
+    _warn "Adwaita icon theme not found at ${ADWAITA_SRC}."
+    _warn "Install it via 'brew install adwaita-icon-theme' or the app will crash on launch."
+fi
 
 _log "Done. Raw bundle at: ${APP_OUT}"
 _log "Next: bash 03-build-inkstitch.sh"

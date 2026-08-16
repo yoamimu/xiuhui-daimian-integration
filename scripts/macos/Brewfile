@@ -32,6 +32,7 @@ brew "gtk4"
 brew "gtkmm4"
 brew "libxslt"
 brew "gettext"
+brew "adwaita-icon-theme"   # GTK4 默认图标主题；缺失会导致启动时 SIGSEGV
 
 # --- Inkscape optional deps (matches msys2installdeps.sh "optional" block) ---
 brew "enchant"
