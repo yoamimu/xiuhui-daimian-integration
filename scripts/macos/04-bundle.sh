@@ -82,12 +82,20 @@ mkdir -p "${EXT_DEST}"
 # remain siblings exactly as the bootloader expects.
 cp -a "${INKSTITCH_DIST_APP}/Contents/." "${EXT_DEST}/Contents/"
 
-# Hoist the inx/ directory to the extension root and fix the relative path.
+# Hoist the inx/ directory to the extension root and fix the relative paths.
+# Upstream *.inx files reference "../icons/<...>", which assumes inx/ sits two
+# levels deep (Contents/Resources/inx/). After hoisting to the extension root,
+# those resolve against inkstitch.app/ instead of Contents/Resources/. Rewrite
+# them to "../Contents/Resources/icons/<...>" so Inkscape finds the bundled
+# SVG icons.
 if [[ -d "${EXT_DEST}/Contents/Resources/inx" ]]; then
     cp -a "${EXT_DEST}/Contents/Resources/inx" "${EXT_DEST}/inx"
     # ../../MacOS/inkstitch  (upstream, assumes Resources/inx/ 2 levels deep)
     # → ../Contents/MacOS/inkstitch (relative to the hoisted extension-root inx/)
     sed -i '' 's|../../MacOS/inkstitch|../Contents/MacOS/inkstitch|g' "${EXT_DEST}/inx/"*.inx
+    # ../icons/  (upstream, also assumes Resources/inx/ 2 levels deep)
+    # → ../Contents/Resources/icons/  (the hoisted inx/ now sits at the extension root)
+    sed -i '' 's|\.\./icons/|../Contents/Resources/icons/|g' "${EXT_DEST}/inx/"*.inx
 fi
 
 # ---------- 3. rewrite Info.plist (branding) ----------
