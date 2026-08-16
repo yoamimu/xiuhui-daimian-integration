@@ -20,8 +20,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INTEG_REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 PREVIEW_ROOT="${PREVIEW_ROOT:-${HOME}/xiuhui-build/inkscape-inkstitch-preview}"
 
-RAW_APP="${PREVIEW_ROOT}/build/Inkscape.app"
-FINAL_APP="${PREVIEW_ROOT}/build/Inkscape-绣绘呆棉版.app"
+# ---------- target architecture ----------
+export MAC_ARCH="${MAC_ARCH:-arm64}"
+case "${MAC_ARCH}" in
+    arm64|x86_64) ;;
+    *) _die "MAC_ARCH must be arm64 or x86_64 (got ${MAC_ARCH})" ;;
+esac
+
+RAW_APP="${PREVIEW_ROOT}/build/Inkscape-${MAC_ARCH}.app"
+FINAL_APP="${PREVIEW_ROOT}/build/Inkscape-绣绘呆棉版-${MAC_ARCH}.app"
 INKSTITCH_DIST_APP="${PREVIEW_ROOT}/src/inkstitch/dist/inkstitch.app"
 
 [[ -d "${RAW_APP}" ]]           || _die "Raw Inkscape bundle not found at ${RAW_APP}. Run 02-build-inkscape.sh."
@@ -76,24 +83,47 @@ DEPLOY_TARGET="${MACOSX_DEPLOYMENT_TARGET:-$(sw_vers -productVersion | cut -d. -
 /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion ${DEPLOY_TARGET}" "${PLIST}" 2>/dev/null \
     || /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string ${DEPLOY_TARGET}" "${PLIST}"
 
-# ---------- 4. ad-hoc codesign EVERYTHING ----------
-# Ad-hoc signing (codesign -s -) does not need an Apple Developer account
-# but DOES satisfy macOS's "all Mach-O binaries inside an .app bundle must
-# be signed" rule for many GTK4 IPC paths. Without it, expect random
-# subprocess crashes ("killed: 9") on launch.
-_log "Ad-hoc signing all Mach-O files inside ${FINAL_APP} ..."
+# ---------- 4. codesign EVERYTHING ----------
+# Signing strategy is selectable:
+#   SIGNING_IDENTITY set (e.g. "Developer ID Application: ...")
+#       → Developer ID signing + hardened runtime (notarizable).
+#   SIGNING_IDENTITY empty (default)
+#       → ad-hoc signing (codesign -s -), no account needed.
+#
+# Ad-hoc signing still satisfies macOS's "all Mach-O binaries inside an
+# .app bundle must be signed" rule for many GTK4 IPC paths. Without it,
+# expect random subprocess crashes ("killed: 9") on launch.
+SIGNING_IDENTITY="${SIGNING_IDENTITY:-}"
+ENTITLEMENTS="${ENTITLEMENTS:-${SCRIPT_DIR}/assets/entitlements.plist}"
+
+if [[ -n "${SIGNING_IDENTITY}" ]]; then
+    _log "Developer ID signing with identity: ${SIGNING_IDENTITY}"
+    SIGN_ARGS=(--force --options runtime --timestamp --sign "${SIGNING_IDENTITY}")
+    # Hardened runtime requires an entitlements plist; fall back to none if absent.
+    if [[ -f "${ENTITLEMENTS}" ]]; then
+        SIGN_ARGS+=(--entitlements "${ENTITLEMENTS}")
+    else
+        _warn "No entitlements plist at ${ENTITLEMENTS}; signing without entitlements."
+    fi
+else
+    _log "Ad-hoc signing (no SIGNING_IDENTITY set; not notarizable)."
+    SIGN_ARGS=(--force --sign - --timestamp=none)
+fi
+
+_log "Signing all Mach-O files inside ${FINAL_APP} ..."
 # Sign nested binaries first (deepest-first), then the bundle wrapper.
-# Using --force --options=runtime here is intentional even for ad-hoc
-# signatures; it makes verification predictable later.
 find "${FINAL_APP}" -type f \( -name '*.dylib' -o -name '*.so' -o -perm -111 \) -print0 \
-    | xargs -0 -n 200 codesign --force --sign - --timestamp=none --preserve-metadata=identifier,entitlements,flags || true
+    | xargs -0 -n 200 codesign "${SIGN_ARGS[@]}" --preserve-metadata=identifier,entitlements,flags || true
 
 # Top-level app bundle signature last.
-codesign --force --deep --sign - --timestamp=none "${FINAL_APP}"
+codesign --force --deep "${SIGN_ARGS[@]}" "${FINAL_APP}"
 
-# Verify (informational; ad-hoc signatures cannot be notarized but should
-# pass basic --verify).
-codesign --verify --deep --verbose=2 "${FINAL_APP}" || _log "codesign --verify reported issues (this is often OK for ad-hoc)."
+# Verify.
+codesign --verify --deep --verbose=2 "${FINAL_APP}" || _log "codesign --verify reported issues (informational; notarization is the authoritative check)."
 
 _log "Final bundle: ${FINAL_APP}"
-_log "Next: bash 05-make-dmg.sh"
+if [[ -n "${SIGNING_IDENTITY}" ]]; then
+    _log "Next: bash 06-notarize.sh (after 05-make-dmg.sh), or set NOTARIZE=1 in 05-make-dmg.sh."
+else
+    _log "Next: bash 05-make-dmg.sh"
+fi

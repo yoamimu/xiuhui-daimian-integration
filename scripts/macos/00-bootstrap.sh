@@ -8,9 +8,12 @@
 # left alone.
 #
 # Assumptions / decisions baked in:
-#   - Target machine: Apple Silicon (arm64)
+#   - Target arch:    MAC_ARCH=arm64 (default) | x86_64
+#                     - arm64  uses /opt/homebrew (native Apple Silicon)
+#                     - x86_64 uses /usr/local   (Rosetta 2 Homebrew prefix)
 #   - Target OS:      macOS 26 (Tahoe) or later
-#   - We do NOT use Apple Developer signing (ad-hoc codesign only)
+#   - Signing:        ad-hoc by default; Developer ID + notarization optional
+#                     (see 04-bundle.sh / 06-notarize.sh and docs/MACOS_SIGNING_SETUP.md)
 #   - We do NOT use jhb / inkscape-ci-macos; we use plain Homebrew.
 #
 # After this script finishes, the following layout is expected on disk:
@@ -33,7 +36,28 @@ _die()  { printf '\033[1;31m[bootstrap]\033[0m %s\n' "$*" >&2; exit 1; }
 
 # ---------- sanity checks ----------
 [[ "$(uname -s)" == "Darwin" ]] || _die "This script must run on macOS."
-[[ "$(uname -m)" == "arm64" ]]  || _die "Only Apple Silicon is supported by the current pipeline (got $(uname -m))."
+
+# ---------- target architecture ----------
+# MAC_ARCH drives the Homebrew prefix and (downstream) the build directory
+# and dmg naming. arm64 = native Apple Silicon, x86_64 = Intel (via Rosetta 2
+# on Apple Silicon, or native on Intel Macs).
+export MAC_ARCH="${MAC_ARCH:-arm64}"
+HOST_ARCH="$(uname -m)"
+case "${MAC_ARCH}" in
+    arm64)  BREW_PREFIX="/opt/homebrew" ;;
+    x86_64) BREW_PREFIX="/usr/local" ;;
+    *)      _die "MAC_ARCH must be arm64 or x86_64 (got ${MAC_ARCH})" ;;
+esac
+
+if [[ "${MAC_ARCH}" != "${HOST_ARCH}" ]]; then
+    _warn "MAC_ARCH=${MAC_ARCH} but host arch is ${HOST_ARCH}."
+    if [[ "${MAC_ARCH}" == "x86_64" && "${HOST_ARCH}" == "arm64" ]]; then
+        _log "Cross-building x86_64 on Apple Silicon requires a Rosetta 2 Homebrew at ${BREW_PREFIX}."
+        _log "Bootstrap it once with: arch -x86_64 /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+    else
+        _warn "Cross-building ${MAC_ARCH} on ${HOST_ARCH} is untested; proceed with caution."
+    fi
+fi
 
 MAC_VERSION="$(sw_vers -productVersion)"
 MAC_MAJOR="${MAC_VERSION%%.*}"
@@ -52,13 +76,23 @@ fi
 
 # ---------- Homebrew ----------
 if ! command -v brew >/dev/null 2>&1; then
-    _log "Installing Homebrew..."
-    NONINTERACTIVE=1 /bin/bash -c \
-        "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    _log "Installing Homebrew (arch ${MAC_ARCH})..."
+    if [[ "${MAC_ARCH}" == "x86_64" && "${HOST_ARCH}" == "arm64" ]]; then
+        # Rosetta 2 Homebrew installs to /usr/local.
+        arch -x86_64 /bin/bash -c \
+            "NONINTERACTIVE=1 $(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    else
+        NONINTERACTIVE=1 /bin/bash -c \
+            "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    fi
 fi
-# Make brew available in this shell (Apple Silicon default prefix).
-eval "$(/opt/homebrew/bin/brew shellenv)"
-_log "Homebrew: $(brew --version | head -1)"
+# Make brew available in this shell from the architecture-appropriate prefix.
+if [[ -x "${BREW_PREFIX}/bin/brew" ]]; then
+    eval "$("${BREW_PREFIX}/bin/brew" shellenv)"
+else
+    _die "Homebrew not found at ${BREW_PREFIX}/bin/brew for MAC_ARCH=${MAC_ARCH}."
+fi
+_log "Homebrew (${MAC_ARCH}): $(brew --version | head -1)"
 
 # ---------- Brewfile ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

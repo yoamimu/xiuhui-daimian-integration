@@ -18,14 +18,29 @@ _die()  { printf '\033[1;31m[02-inkscape]\033[0m %s\n' "$*" >&2; exit 1; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PREVIEW_ROOT="${PREVIEW_ROOT:-${HOME}/xiuhui-build/inkscape-inkstitch-preview}"
 INKSCAPE_SRC="${PREVIEW_ROOT}/src/inkscape"
-BUILD_DIR="${PREVIEW_ROOT}/build/inkscape-macos"
+
+# ---------- target architecture ----------
+# arm64 → /opt/homebrew (native), x86_64 → /usr/local (Rosetta 2 / Intel).
+export MAC_ARCH="${MAC_ARCH:-arm64}"
+case "${MAC_ARCH}" in
+    arm64)  BREW_PREFIX="/opt/homebrew" ;;
+    x86_64) BREW_PREFIX="/usr/local" ;;
+    *)      _die "MAC_ARCH must be arm64 or x86_64 (got ${MAC_ARCH})" ;;
+esac
+
+# Per-arch build + install dirs so arm64 and x86_64 never share ccache/CMake
+# cache or install trees.
+BUILD_DIR="${PREVIEW_ROOT}/build/inkscape-macos-${MAC_ARCH}"
 INSTALL_PREFIX="${BUILD_DIR}/install"
 
 [[ -d "${INKSCAPE_SRC}/.git" ]] || _die "Inkscape clone not found at ${INKSCAPE_SRC}."
 
 # Pull Homebrew prefixes for paths and pkg-config.
-eval "$(/opt/homebrew/bin/brew shellenv)"
-export PKG_CONFIG_PATH="$(brew --prefix)/Library/Homebrew/os/mac/pkgconfig/26:$(brew --prefix icu4c@77)/lib/pkgconfig:$(brew --prefix libffi)/lib/pkgconfig:$(brew --prefix gettext)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+eval "$("${BREW_PREFIX}/bin/brew" shellenv)"
+# icu4c is versioned in Homebrew (icu4c@NN). Resolve it dynamically instead of
+# hardcoding a version so it survives formula upgrades.
+ICU_PREFIX="$(brew --prefix icu4c 2>/dev/null || brew --prefix icu4c@77 2>/dev/null || true)"
+export PKG_CONFIG_PATH="$(brew --prefix)/Library/Homebrew/os/mac/pkgconfig/26:${ICU_PREFIX:+${ICU_PREFIX}/lib/pkgconfig:}$(brew --prefix libffi)/lib/pkgconfig:$(brew --prefix gettext)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 export PATH="$(brew --prefix gettext)/bin:${PATH}"
 
 # Deployment target: match the build host major version. macOS 26+ users
@@ -42,12 +57,12 @@ mkdir -p "${BUILD_DIR}"
 
 # Re-run cmake every time so option changes in the patch are picked up;
 # CMakeCache.txt is reused as a build cache via ccache.
-_log "Configuring Inkscape with cmake..."
+_log "Configuring Inkscape with cmake (arch ${MAC_ARCH})..."
 cmake -S "${INKSCAPE_SRC}" -B "${BUILD_DIR}" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET="${DEPLOY_TARGET}" \
-    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_ARCHITECTURES="${MAC_ARCH}" \
     -DCMAKE_C_COMPILER_LAUNCHER=ccache \
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DCMAKE_FIND_FRAMEWORK=LAST \
@@ -71,7 +86,7 @@ ninja -C "${BUILD_DIR}" install
 # The resulting .app is "raw": no rewritten Info.plist branding (done in
 # 04-bundle.sh) and no Ink/Stitch yet (also 04-bundle.sh).
 
-APP_OUT="${PREVIEW_ROOT}/build/Inkscape.app"
+APP_OUT="${PREVIEW_ROOT}/build/Inkscape-${MAC_ARCH}.app"
 _log "Assembling raw bundle skeleton at ${APP_OUT} ..."
 rm -rf "${APP_OUT}"
 mkdir -p "${APP_OUT}/Contents/MacOS" \

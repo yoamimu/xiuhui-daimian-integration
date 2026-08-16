@@ -1,0 +1,105 @@
+name: macOS Build
+
+# 双架构构建矩阵：arm64 (Apple Silicon runner) 与 x86_64 (Intel runner)。
+# 每个架构独立产出 dmg。可选：配置 Secrets 后启用 Developer ID 签名 + 公证。
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. v0.1.0). Defaults to git short SHA.'
+        required: false
+        default: ''
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14            # Apple Silicon
+            brew_prefix: /opt/homebrew
+          - arch: x86_64
+            runner: macos-13            # Intel
+            brew_prefix: /usr/local
+
+    runs-on: ${{ matrix.runner }}
+
+    env:
+      MAC_ARCH: ${{ matrix.arch }}
+      # 未配置 Secrets 时走 ad-hoc 签名 + 跳过公证；配置后自动启用。
+      SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY || '' }}
+      NOTARIZE: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && '1' || '0' }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      TEAM_ID: ${{ secrets.TEAM_ID }}
+
+    steps:
+      - name: Checkout integration repo
+        uses: actions/checkout@v4
+
+      - name: Setup workspace layout
+        run: |
+          mkdir -p "$HOME/xiuhui-build/inkscape-inkstitch-preview/src"
+          ln -sfn "$GITHUB_WORKSPACE" "$HOME/xiuhui-build/xiuhui-daimian-integration"
+
+      - name: Clone upstream sources (pinned base commits)
+        working-directory: ${{ env.HOME }}/xiuhui-build/inkscape-inkstitch-preview/src
+        run: |
+          # Inkscape (base 7923d92)
+          git clone --recurse-submodules https://gitlab.com/inkscape/inkscape.git
+          cd inkscape && git checkout 7923d92 && git submodule update --init --recursive && cd ..
+          # Ink/Stitch (base 0312dac)
+          git clone --recurse-submodules https://github.com/inkstitch/inkstitch.git
+          cd inkstitch && git checkout 0312dac && git submodule update --init --recursive && cd ..
+
+      - name: Bootstrap (Homebrew deps)
+        run: bash scripts/macos/00-bootstrap.sh
+        working-directory: ${{ env.HOME }}/xiuhui-build/xiuhui-daimian-integration
+
+      - name: Apply patches + overlays
+        run: bash scripts/macos/01-apply-patches.sh
+        working-directory: ${{ env.HOME }}/xiuhui-build/xiuhui-daimian-integration
+
+      - name: Build Inkscape
+        run: bash scripts/macos/02-build-inkscape.sh
+        working-directory: ${{ env.HOME }}/xiuhui-build/xiuhui-daimian-integration
+
+      - name: Build Ink/Stitch
+        run: bash scripts/macos/03-build-inkstitch.sh
+        working-directory: ${{ env.HOME }}/xiuhui-build/xiuhui-daimian-integration
+
+      - name: Import signing certificate (optional)
+        if: env.SIGNING_IDENTITY != ''
+        run: |
+          echo "${{ secrets.MACOS_CERTIFICATE }}" | base64 --decode > certificate.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import certificate.p12 -k build.keychain -P "${{ secrets.MACOS_CERTIFICATE_PWD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+
+      - name: Bundle + sign
+        run: bash scripts/macos/04-bundle.sh
+        working-directory: ${{ env.HOME }}/xiuhui-build/xiuhui-daimian-integration
+
+      - name: Make dmg (+ notarize if configured)
+        run: bash scripts/macos/05-make-dmg.sh
+        working-directory: ${{ env.HOME }}/xiuhui-build/xiuhui-daimian-integration
+
+      - name: Upload dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: inkscape-inkstitch-绣绘呆棉版-${{ matrix.arch }}
+          path: ${{ env.HOME }}/xiuhui-build/inkscape-inkstitch-preview/release/*.dmg
+          if-no-files-found: error
+
+      - name: Attach to Release (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.HOME }}/xiuhui-build/inkscape-inkstitch-preview/release/*.dmg

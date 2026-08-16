@@ -25,15 +25,26 @@ INTEG_REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 PREVIEW_ROOT="${PREVIEW_ROOT:-${HOME}/xiuhui-build/inkscape-inkstitch-preview}"
 RELEASE_DIR="${RELEASE_DIR:-${PREVIEW_ROOT}/release}"
 
-FINAL_APP="${PREVIEW_ROOT}/build/Inkscape-绣绘呆棉版.app"
+# ---------- target architecture ----------
+export MAC_ARCH="${MAC_ARCH:-arm64}"
+case "${MAC_ARCH}" in
+    arm64|x86_64) ;;
+    *) _die "MAC_ARCH must be arm64 or x86_64 (got ${MAC_ARCH})" ;;
+esac
+
+APP_NAME="Inkscape-绣绘呆棉版-${MAC_ARCH}.app"
+FINAL_APP="${PREVIEW_ROOT}/build/${APP_NAME}"
 [[ -d "${FINAL_APP}" ]] || _die "Final app not found at ${FINAL_APP}. Run 04-bundle.sh first."
 
 VERSION="${VERSION:-xiuhui-$(git -C "${INTEG_REPO_ROOT}" rev-parse --short=7 HEAD 2>/dev/null || date +%Y%m%d)-local}"
-DMG_NAME="Inkscape-Inkstitch-绣绘呆棉版-${VERSION}-arm64.dmg"
+DMG_NAME="Inkscape-Inkstitch-绣绘呆棉版-${VERSION}-${MAC_ARCH}.dmg"
 DMG_OUT="${RELEASE_DIR}/${DMG_NAME}"
 
 mkdir -p "${RELEASE_DIR}"
 rm -f "${DMG_OUT}"
+# 清理 create-dmg 可能残留的中间文件（rw.<pid>.<name>），
+# 避免并发或上次中断时 hdiutil convert 报"文件已存在"。
+rm -f "${RELEASE_DIR}"/rw.*."${DMG_NAME}"
 
 # Stage dir: contents of the mounted dmg.
 STAGE="$(mktemp -d -t xiuhui-dmg)"
@@ -45,7 +56,7 @@ cp -f "${SCRIPT_DIR}/assets/首次打开说明.txt" "${STAGE}/首次打开说明
 
 # Background image (optional). Generated separately and checked into
 # scripts/macos/assets/. If missing the dmg is plain.
-BG_IMG="${SCRIPT_DIR}/assets/dmg-background-arm64.png"
+BG_IMG="${SCRIPT_DIR}/assets/dmg-background-${MAC_ARCH}.png"
 
 if command -v create-dmg >/dev/null 2>&1; then
     _log "Building styled dmg with create-dmg ..."
@@ -58,10 +69,10 @@ if command -v create-dmg >/dev/null 2>&1; then
         --window-pos 200 120 \
         --window-size 720 480 \
         --icon-size 110 \
-        --icon "Inkscape-绣绘呆棉版.app" 180 240 \
+        --icon "${APP_NAME}" 180 240 \
         --app-drop-link 540 240 \
         --icon "首次打开说明.txt" 360 380 \
-        --hide-extension "Inkscape-绣绘呆棉版.app" \
+        --hide-extension "${APP_NAME}" \
         ${EXTRA_BG[@]+"${EXTRA_BG[@]}"} \
         "${DMG_OUT}" \
         "${STAGE}/" || true
@@ -88,3 +99,13 @@ fi
 _log "DMG written to: ${DMG_OUT}"
 ls -lh "${DMG_OUT}"
 shasum -a 256 "${DMG_OUT}"
+
+# ---------- notarization (optional) ----------
+# If NOTARIZE=1, submit the freshly-built dmg to Apple's notary service.
+# Requires an App Store Connect API key or App-specific password — see
+# docs/MACOS_SIGNING_SETUP.md. Signing must have been done with a
+# Developer ID identity in 04-bundle.sh for notarization to succeed.
+if [[ "${NOTARIZE:-0}" == "1" ]]; then
+    _log "Notarization requested; delegating to 06-notarize.sh ..."
+    bash "${SCRIPT_DIR}/06-notarize.sh" "${DMG_OUT}"
+fi

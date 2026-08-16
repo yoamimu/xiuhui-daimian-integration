@@ -1,4 +1,8 @@
-# Brewfile for 绣绘呆棉整合版 macOS build (Apple Silicon, macOS 26+ "Tahoe")
+# Brewfile for 绣绘呆棉整合版 macOS build (macOS 26+ "Tahoe")
+#
+# Supports both arm64 (native Apple Silicon, /opt/homebrew) and x86_64
+# (Rosetta 2 / Intel, /usr/local) — install this Brewfile under the prefix
+# matching the target MAC_ARCH.
 #
 # Used by scripts/macos/00-bootstrap.sh via `brew bundle install --file=Brewfile`.
 #
@@ -17,6 +21,7 @@ brew "ccache"
 brew "git"
 brew "create-dmg"     # used by 05-make-dmg.sh
 brew "jq"             # used by 03-build-inkstitch.sh
+brew "xz"             # used by create-dmg / notarization tooling
 
 # --- Inkscape required deps ---
 brew "boost"
