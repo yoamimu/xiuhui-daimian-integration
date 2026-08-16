@@ -1210,3 +1210,16 @@ index 8b902b8..c13e99f 100644
  }
  
  /**
+diff --git a/src/ui/widget/desktop-widget.cpp b/src/ui/widget/desktop-widget.cpp
+index 0b817aade7..603c7055c7 100644
+--- a/src/ui/widget/desktop-widget.cpp
++++ b/src/ui/widget/desktop-widget.cpp
+@@ -442,7 +442,7 @@ void SPDesktopWidget::_updateTitle()
+             Name += ")";
+         }
+ 
+-        Name += " - Inkscape";
++        Name += " - 绣绘";
+ 
+         // Name += " (";
+         // Name += Inkscape::version_string;

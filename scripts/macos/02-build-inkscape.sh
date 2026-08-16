@@ -41,7 +41,11 @@ eval "$("${BREW_PREFIX}/bin/brew" shellenv)"
 # icu4c is versioned in Homebrew (icu4c@NN). Resolve it dynamically instead of
 # hardcoding a version so it survives formula upgrades.
 ICU_PREFIX="$(brew --prefix icu4c 2>/dev/null || brew --prefix icu4c@77 2>/dev/null || true)"
-export PKG_CONFIG_PATH="$(brew --prefix)/Library/Homebrew/os/mac/pkgconfig/26:${ICU_PREFIX:+${ICU_PREFIX}/lib/pkgconfig:}$(brew --prefix libffi)/lib/pkgconfig:$(brew --prefix gettext)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+# libffi must come BEFORE os/mac/pkgconfig, otherwise Homebrew's macOS shim
+# libffi.pc (which points at the CommandLineTools SDK) wins and injects
+# "-I/.../CommandLineTools/SDKs/.../usr/include/ffi", causing the libc++
+# <cmath>/<math.h> isnan/signbit macro collision on macOS 26.
+export PKG_CONFIG_PATH="$(brew --prefix libffi)/lib/pkgconfig:$(brew --prefix)/Library/Homebrew/os/mac/pkgconfig/26:${ICU_PREFIX:+${ICU_PREFIX}/lib/pkgconfig:}$(brew --prefix gettext)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 export PATH="$(brew --prefix gettext)/bin:${PATH}"
 
 # Deployment target: match the build host major version. macOS 26+ users
