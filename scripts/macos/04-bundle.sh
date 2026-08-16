@@ -96,6 +96,33 @@ if [[ -d "${EXT_DEST}/Contents/Resources/inx" ]]; then
     # ../icons/  (upstream, also assumes Resources/inx/ 2 levels deep)
     # → ../Contents/Resources/icons/  (the hoisted inx/ now sits at the extension root)
     sed -i '' 's|\.\./icons/|../Contents/Resources/icons/|g' "${EXT_DEST}/inx/"*.inx
+
+    # ---------- 2b. rasterize fragile SVG icons to PNG ----------
+    # Two upstream Ink/Stitch icons refuse to render inside Inkscape's
+    # extension gallery:
+    #   lettering.svg           uses font-family="Barlow" (not installed;
+    #                            only Barlow_Condensed is available on macOS,
+    #                            and Pango/Cairo treat the names as distinct)
+    #   stitch_plan_preview.svg uses an inkstitch-namespaced attribute that
+    #                            trips the strict SVG loader
+    # librsvg renders both fine without those quirks, so we pre-bake them
+    # to PNG and rewrite the inx references.
+    if command -v rsvg-convert >/dev/null 2>&1; then
+        _log "Rasterizing fragile SVG icons to PNG ..."
+        for svg in lettering stitch_plan_preview; do
+            src="${EXT_DEST}/Contents/Resources/icons/inx/${svg}.svg"
+            dst="${EXT_DEST}/Contents/Resources/icons/inx/${svg}.png"
+            if [[ -f "$src" ]] && command -v rsvg-convert >/dev/null 2>&1; then
+                rsvg-convert -w 64 -h 64 "$src" -o "$dst" \
+                    && _log "  rasterized ${svg}.svg -> ${svg}.png"
+            fi
+        done
+        # Point the inx files at the PNG fallbacks.
+        sed -i '' 's|icons/inx/lettering\.svg|icons/inx/lettering.png|g' "${EXT_DEST}/inx/"*.inx
+        sed -i '' 's|icons/inx/stitch_plan_preview\.svg|icons/inx/stitch_plan_preview.png|g' "${EXT_DEST}/inx/"*.inx
+    else
+        _warn "rsvg-convert not available; lettering/stitch_plan_preview may render as broken-image X in the extension gallery."
+    fi
 fi
 
 # ---------- 3. rewrite Info.plist (branding) ----------
