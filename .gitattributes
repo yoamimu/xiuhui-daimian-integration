@@ -3,3 +3,6 @@
 *.patch text eol=lf
 *.po text eol=lf
 *.md text eol=lf
+*.png binary
+*.ico binary
+*.bmp binary
