@@ -48,49 +48,47 @@ cp -a "${RAW_APP}" "${FINAL_APP}"
 #   Inkscape.app/Contents/Resources/share/inkscape/extensions/
 # Putting Ink/Stitch under a sub-folder there makes it visible to every
 # user of the host machine without any post-install script.
-EXT_DEST="${FINAL_APP}/Contents/Resources/share/inkscape/extensions/inkstitch"
-mkdir -p "$(dirname "${EXT_DEST}")"
-rm -rf "${EXT_DEST}"
-
-# Ink/Stitch's PyInstaller bundle is a standard .app:
-#   dist/inkstitch.app/Contents/MacOS/        (the inkstitch binary)
-#   dist/inkstitch.app/Contents/Resources/    (inx/, fonts/, palettes/, ... + symlinks)
-#   dist/inkstitch.app/Contents/Frameworks/   (Python.framework, numpy, PIL, .dylibs, ...)
-# Most of Resources/ is itself a forest of relative symlinks ("PIL -> ../Frameworks/PIL")
-# that only resolve correctly if Frameworks/ is still a sibling of MacOS/ and Resources/.
 #
-# Layout decision:
-#   - Flatten Resources/ into ${EXT_DEST} so Inkscape's extension scanner picks up
-#     the inx/ directory (it scans one level deep by default).
-#   - Copy Frameworks/ into ${EXT_DEST}/Frameworks/ so the Resources symlinks
-#     (PIL -> ../Frameworks/PIL, etc.) keep resolving.
-#   - Copy MacOS/ to ${EXT_PARENT}/MacOS/ — i.e. ONE level above ${EXT_DEST}.
-#     Reason: Ink/Stitch's *.inx files hardcode
-#         <command location="inx">../../MacOS/inkstitch</command>
-#     which Inkscape resolves relative to the .inx file's own directory.
-#     From extensions/inkstitch/inx/ that's extensions/inkstitch/../.. + MacOS/inkstitch
-#     = extensions/MacOS/inkstitch. Putting it under ${EXT_DEST} would force
-#     users to add a non-standard MacOS/ under inkstitch/, which breaks the
-#     upstream inx paths without any obvious upside.
-EXT_PARENT="$(dirname "${EXT_DEST}")"
+# CRITICAL: the Ink/Stitch sub-folder MUST keep the `.app` suffix and the
+# `Contents/` layer, because the PyInstaller bootloader locates its home
+# directory by scanning upward for a `*.app/Contents/MacOS` path component.
+# If we strip `.app` or flatten `Contents/`, the bootloader walks past the
+# Ink/Stitch bundle and anchors onto the enclosing Inkscape.app instead, then
+# fails with `Failed to load Python shared library .../MacOS/Python`.
+#
+# Final layout:
+#   extensions/inkstitch.app/
+#   ├── inx/                        ← hoisted copy so Inkscape's scanner finds it
+#   │   └── *.inx  (rewritten to Contents/MacOS/inkstitch)
+#   └── Contents/
+#       ├── MacOS/inkstitch         ← the bootloader binary
+#       ├── Resources/              ← full Resources (Python, PIL, fonts, ...)
+#       └── Frameworks/             ← Python.framework + symlink targets
+#
+# The upstream *.inx files hardcode
+#     <command location="inx">../../MacOS/inkstitch</command>
+# which is only valid under the original Contents/Resources/inx/ location.
+# After hoisting inx/ to the extension root, we rewrite it to
+# `Contents/MacOS/inkstitch` so Inkscape finds the binary relative to inx/.
+
+EXT_DEST="${FINAL_APP}/Contents/Resources/share/inkscape/extensions/inkstitch.app"
+mkdir -p "$(dirname "${EXT_DEST}")"
 
 _log "Embedding Ink/Stitch into ${EXT_DEST}"
-rm -rf "${EXT_DEST}" "${EXT_PARENT}/MacOS"
-mkdir -p "${EXT_DEST}" "${EXT_PARENT}/MacOS"
+rm -rf "${EXT_DEST}"
+mkdir -p "${EXT_DEST}"
 
-# Flatten Resources (inx/, fonts/, palettes/, icons/, locales/, ...) into the
-# extension root. Most entries here are symlinks that point into Frameworks/.
-cp -a "${INKSTITCH_DIST_APP}/Contents/Resources/." "${EXT_DEST}/"
+# Keep the whole Contents/ subtree intact so MacOS/ + Resources/ + Frameworks/
+# remain siblings exactly as the bootloader expects.
+cp -a "${INKSTITCH_DIST_APP}/Contents/." "${EXT_DEST}/Contents/"
 
-# Copy Frameworks next to the symlinks so relative "../Frameworks/X" targets
-# resolve inside the Inkscape .app.
-if [[ -d "${INKSTITCH_DIST_APP}/Contents/Frameworks" ]]; then
-    cp -a "${INKSTITCH_DIST_APP}/Contents/Frameworks/." "${EXT_DEST}/Frameworks/"
+# Hoist the inx/ directory to the extension root and fix the relative path.
+if [[ -d "${EXT_DEST}/Contents/Resources/inx" ]]; then
+    cp -a "${EXT_DEST}/Contents/Resources/inx" "${EXT_DEST}/inx"
+    # ../../MacOS/inkstitch  (upstream, assumes Resources/inx/ 2 levels deep)
+    # → Contents/MacOS/inkstitch (relative to the hoisted extension-root inx/)
+    sed -i '' 's|../../MacOS/inkstitch|Contents/MacOS/inkstitch|g' "${EXT_DEST}/inx/"*.inx
 fi
-
-# The actual inkstitch executable goes one level up at ${EXT_PARENT}/MacOS/, so
-# that inx/../../MacOS/inkstitch resolves correctly.
-cp -a "${INKSTITCH_DIST_APP}/Contents/MacOS/." "${EXT_PARENT}/MacOS/"
 
 # ---------- 3. rewrite Info.plist (branding) ----------
 PLIST="${FINAL_APP}/Contents/Info.plist"
