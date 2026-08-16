@@ -59,7 +59,7 @@ cp -a "${RAW_APP}" "${FINAL_APP}"
 # Final layout:
 #   extensions/inkstitch.app/
 #   ├── inx/                        ← hoisted copy so Inkscape's scanner finds it
-#   │   └── *.inx  (rewritten to Contents/MacOS/inkstitch)
+#   │   └── *.inx  (rewritten to ../Contents/MacOS/inkstitch)
 #   └── Contents/
 #       ├── MacOS/inkstitch         ← the bootloader binary
 #       ├── Resources/              ← full Resources (Python, PIL, fonts, ...)
@@ -69,7 +69,7 @@ cp -a "${RAW_APP}" "${FINAL_APP}"
 #     <command location="inx">../../MacOS/inkstitch</command>
 # which is only valid under the original Contents/Resources/inx/ location.
 # After hoisting inx/ to the extension root, we rewrite it to
-# `Contents/MacOS/inkstitch` so Inkscape finds the binary relative to inx/.
+# `../Contents/MacOS/inkstitch` so Inkscape finds the binary relative to inx/.
 
 EXT_DEST="${FINAL_APP}/Contents/Resources/share/inkscape/extensions/inkstitch.app"
 mkdir -p "$(dirname "${EXT_DEST}")"
@@ -86,8 +86,8 @@ cp -a "${INKSTITCH_DIST_APP}/Contents/." "${EXT_DEST}/Contents/"
 if [[ -d "${EXT_DEST}/Contents/Resources/inx" ]]; then
     cp -a "${EXT_DEST}/Contents/Resources/inx" "${EXT_DEST}/inx"
     # ../../MacOS/inkstitch  (upstream, assumes Resources/inx/ 2 levels deep)
-    # → Contents/MacOS/inkstitch (relative to the hoisted extension-root inx/)
-    sed -i '' 's|../../MacOS/inkstitch|Contents/MacOS/inkstitch|g' "${EXT_DEST}/inx/"*.inx
+    # → ../Contents/MacOS/inkstitch (relative to the hoisted extension-root inx/)
+    sed -i '' 's|../../MacOS/inkstitch|../Contents/MacOS/inkstitch|g' "${EXT_DEST}/inx/"*.inx
 fi
 
 # ---------- 3. rewrite Info.plist (branding) ----------
