@@ -28,7 +28,7 @@ case "${MAC_ARCH}" in
 esac
 
 RAW_APP="${PREVIEW_ROOT}/build/Inkscape-${MAC_ARCH}.app"
-FINAL_APP="${PREVIEW_ROOT}/build/Inkscape-绣绘呆棉版-${MAC_ARCH}.app"
+FINAL_APP="${PREVIEW_ROOT}/build/绣绘-${MAC_ARCH}.app"
 INKSTITCH_DIST_APP="${PREVIEW_ROOT}/src/inkstitch/dist/inkstitch.app"
 
 [[ -d "${RAW_APP}" ]]           || _die "Raw Inkscape bundle not found at ${RAW_APP}. Run 02-build-inkscape.sh."
@@ -101,10 +101,10 @@ fi
 # ---------- 3. rewrite Info.plist (branding) ----------
 PLIST="${FINAL_APP}/Contents/Info.plist"
 _log "Rewriting Info.plist branding..."
-/usr/libexec/PlistBuddy -c "Set :CFBundleName 绣绘呆棉整合版" "${PLIST}" 2>/dev/null \
-    || /usr/libexec/PlistBuddy -c "Add :CFBundleName string 绣绘呆棉整合版" "${PLIST}"
-/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 绣绘呆棉整合版" "${PLIST}" 2>/dev/null \
-    || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string 绣绘呆棉整合版" "${PLIST}"
+/usr/libexec/PlistBuddy -c "Set :CFBundleName 绣绘" "${PLIST}" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Add :CFBundleName string 绣绘" "${PLIST}"
+/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 绣绘" "${PLIST}" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string 绣绘" "${PLIST}"
 /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.yoamimu.xiuhui-daimian.inkscape" "${PLIST}"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "${PLIST}" 2>/dev/null \
     || /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string ${VERSION}" "${PLIST}"
@@ -114,6 +114,18 @@ _log "Rewriting Info.plist branding..."
 DEPLOY_TARGET="${MACOSX_DEPLOYMENT_TARGET:-$(sw_vers -productVersion | cut -d. -f1).0}"
 /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion ${DEPLOY_TARGET}" "${PLIST}" 2>/dev/null \
     || /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string ${DEPLOY_TARGET}" "${PLIST}"
+
+# ---------- 3b. brand the app icon (绣绘 logo) ----------
+# Use the 绣绘 icon (generated from assets/branding/source) as the app icon.
+BRAND_ICNS="${INTEG_REPO_ROOT}/assets/branding/macos/绣绘.icns"
+if [[ -f "${BRAND_ICNS}" ]]; then
+    _log "Applying 绣绘 app icon ..."
+    cp -f "${BRAND_ICNS}" "${FINAL_APP}/Contents/Resources/绣绘.icns"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile 绣绘.icns" "${PLIST}" 2>/dev/null \
+        || /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string 绣绘.icns" "${PLIST}"
+else
+    _warn "Brand icon not found at ${BRAND_ICNS}; keeping default icon."
+fi
 
 # ---------- 4. codesign EVERYTHING ----------
 # Signing strategy is selectable:

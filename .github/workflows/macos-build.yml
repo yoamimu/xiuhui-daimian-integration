@@ -94,7 +94,7 @@ jobs:
       - name: Upload dmg artifact
         uses: actions/upload-artifact@v4
         with:
-          name: inkscape-inkstitch-绣绘呆棉版-${{ matrix.arch }}
+          name: 绣绘-${{ matrix.arch }}
           path: ${{ env.HOME }}/xiuhui-build/inkscape-inkstitch-preview/release/*.dmg
           if-no-files-found: error
 

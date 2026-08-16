@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
 # 05-make-dmg.sh
-# 绣绘呆棉整合版 macOS build — wrap the final .app into a user-friendly
+# 绣绘 macOS build — wrap the final .app into a user-friendly
 # .dmg with an /Applications drag target, a localized README and (if
 # available) a background image showing the "first launch" workaround.
 #
 # Output:
-#   ${PREVIEW_ROOT}/release/Inkscape-Inkstitch-绣绘呆棉版-<VERSION>-arm64.dmg
+#   ${PREVIEW_ROOT}/release/绣绘-<VERSION>-arm64.dmg
 #
 # Uses Homebrew `create-dmg` (installed via Brewfile). If create-dmg is
 # missing we fall back to a plain `hdiutil create` that still contains
@@ -32,12 +32,12 @@ case "${MAC_ARCH}" in
     *) _die "MAC_ARCH must be arm64 or x86_64 (got ${MAC_ARCH})" ;;
 esac
 
-APP_NAME="Inkscape-绣绘呆棉版-${MAC_ARCH}.app"
+APP_NAME="绣绘-${MAC_ARCH}.app"
 FINAL_APP="${PREVIEW_ROOT}/build/${APP_NAME}"
 [[ -d "${FINAL_APP}" ]] || _die "Final app not found at ${FINAL_APP}. Run 04-bundle.sh first."
 
 VERSION="${VERSION:-xiuhui-$(git -C "${INTEG_REPO_ROOT}" rev-parse --short=7 HEAD 2>/dev/null || date +%Y%m%d)-local}"
-DMG_NAME="Inkscape-Inkstitch-绣绘呆棉版-${VERSION}-${MAC_ARCH}.dmg"
+DMG_NAME="绣绘-${VERSION}-${MAC_ARCH}.dmg"
 DMG_OUT="${RELEASE_DIR}/${DMG_NAME}"
 
 mkdir -p "${RELEASE_DIR}"
@@ -65,7 +65,7 @@ if command -v create-dmg >/dev/null 2>&1; then
         EXTRA_BG=(--background "${BG_IMG}")
     fi
     create-dmg \
-        --volname "绣绘呆棉整合版 ${VERSION}" \
+        --volname "绣绘 ${VERSION}" \
         --window-pos 200 120 \
         --window-size 720 480 \
         --icon-size 110 \
@@ -90,7 +90,7 @@ if command -v create-dmg >/dev/null 2>&1; then
 else
     _log "create-dmg not installed; falling back to plain hdiutil dmg."
     ln -s /Applications "${STAGE}/Applications"
-    hdiutil create -volname "绣绘呆棉整合版 ${VERSION}" \
+    hdiutil create -volname "绣绘 ${VERSION}" \
                    -srcfolder "${STAGE}" \
                    -ov -format UDZO \
                    "${DMG_OUT}"
