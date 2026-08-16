@@ -21,4 +21,5 @@ Changes:
 - Added dual-arch macOS build support (arm64 + x86_64), Developer ID signing + notarization (`06-notarize.sh`), and GitHub Actions CI workflow.
 - Fixed macOS crash-on-launch: bundled GTK4's Adwaita icon theme into the `.app` (previously missing, causing SIGSEGV in `gtk_icon_theme_lookup_icon`).
 - Fixed dmg naming bug: `create-dmg` icon layout now uses the arch-suffixed app name, and stale `rw.*.dmg` intermediates are cleaned up.
+- Fixed Ink/Stitch extensions failing to load with "无法满足其中一个依赖项 ... 字符串: ../../MacOS/inkstitch": relocated the `inkstitch` binary to `extensions/MacOS/inkstitch` (one level above `extensions/inkstitch/`) so the upstream-relative path in `*.inx` files resolves correctly. Also copies `Contents/Frameworks/` so the symbolic links inside `Resources/` (`PIL -> ../Frameworks/PIL`, etc.) keep working.
 

@@ -52,19 +52,45 @@ EXT_DEST="${FINAL_APP}/Contents/Resources/share/inkscape/extensions/inkstitch"
 mkdir -p "$(dirname "${EXT_DEST}")"
 rm -rf "${EXT_DEST}"
 
-# Ink/Stitch's PyInstaller bundle has the runnable tree at
-#   dist/inkstitch.app/Contents/MacOS/  (binaries + python libs)
-#   dist/inkstitch.app/Contents/Resources/  (inx, fonts, palettes, ...)
-# Inkscape's extension loader expects the .inx files and Python entry
-# point at the top level of the extension folder, so we flatten the
-# Contents/MacOS + Contents/Resources content directly into ${EXT_DEST}.
+# Ink/Stitch's PyInstaller bundle is a standard .app:
+#   dist/inkstitch.app/Contents/MacOS/        (the inkstitch binary)
+#   dist/inkstitch.app/Contents/Resources/    (inx/, fonts/, palettes/, ... + symlinks)
+#   dist/inkstitch.app/Contents/Frameworks/   (Python.framework, numpy, PIL, .dylibs, ...)
+# Most of Resources/ is itself a forest of relative symlinks ("PIL -> ../Frameworks/PIL")
+# that only resolve correctly if Frameworks/ is still a sibling of MacOS/ and Resources/.
+#
+# Layout decision:
+#   - Flatten Resources/ into ${EXT_DEST} so Inkscape's extension scanner picks up
+#     the inx/ directory (it scans one level deep by default).
+#   - Copy Frameworks/ into ${EXT_DEST}/Frameworks/ so the Resources symlinks
+#     (PIL -> ../Frameworks/PIL, etc.) keep resolving.
+#   - Copy MacOS/ to ${EXT_PARENT}/MacOS/ — i.e. ONE level above ${EXT_DEST}.
+#     Reason: Ink/Stitch's *.inx files hardcode
+#         <command location="inx">../../MacOS/inkstitch</command>
+#     which Inkscape resolves relative to the .inx file's own directory.
+#     From extensions/inkstitch/inx/ that's extensions/inkstitch/../.. + MacOS/inkstitch
+#     = extensions/MacOS/inkstitch. Putting it under ${EXT_DEST} would force
+#     users to add a non-standard MacOS/ under inkstitch/, which breaks the
+#     upstream inx paths without any obvious upside.
+EXT_PARENT="$(dirname "${EXT_DEST}")"
+
 _log "Embedding Ink/Stitch into ${EXT_DEST}"
-mkdir -p "${EXT_DEST}"
-# Resources come first; they include inx/, fonts/, palettes/ etc.
+rm -rf "${EXT_DEST}" "${EXT_PARENT}/MacOS"
+mkdir -p "${EXT_DEST}" "${EXT_PARENT}/MacOS"
+
+# Flatten Resources (inx/, fonts/, palettes/, icons/, locales/, ...) into the
+# extension root. Most entries here are symlinks that point into Frameworks/.
 cp -a "${INKSTITCH_DIST_APP}/Contents/Resources/." "${EXT_DEST}/"
-# Binaries + python libs from MacOS/. Inkstitch.py + the bundled python
-# runtime end up here.
-cp -a "${INKSTITCH_DIST_APP}/Contents/MacOS/." "${EXT_DEST}/"
+
+# Copy Frameworks next to the symlinks so relative "../Frameworks/X" targets
+# resolve inside the Inkscape .app.
+if [[ -d "${INKSTITCH_DIST_APP}/Contents/Frameworks" ]]; then
+    cp -a "${INKSTITCH_DIST_APP}/Contents/Frameworks/." "${EXT_DEST}/Frameworks/"
+fi
+
+# The actual inkstitch executable goes one level up at ${EXT_PARENT}/MacOS/, so
+# that inx/../../MacOS/inkstitch resolves correctly.
+cp -a "${INKSTITCH_DIST_APP}/Contents/MacOS/." "${EXT_PARENT}/MacOS/"
 
 # ---------- 3. rewrite Info.plist (branding) ----------
 PLIST="${FINAL_APP}/Contents/Info.plist"
