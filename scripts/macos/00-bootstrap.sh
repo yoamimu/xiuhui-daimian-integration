@@ -103,7 +103,9 @@ _log "Updating Homebrew formulae index..."
 brew update
 
 _log "Installing build dependencies from ${BREWFILE}..."
-brew bundle install --file="${BREWFILE}" --no-lock
+# --no-lock was removed in newer Homebrew/bundle; fall back gracefully.
+brew bundle install --file="${BREWFILE}" --no-lock 2>/dev/null \
+    || brew bundle install --file="${BREWFILE}"
 
 # ---------- workspace check ----------
 PREVIEW_ROOT="${PREVIEW_ROOT:-${HOME}/xiuhui-build/inkscape-inkstitch-preview}"
