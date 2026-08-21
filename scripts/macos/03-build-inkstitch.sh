@@ -68,7 +68,10 @@ _log "VERSION=${VERSION}  BUILD=${BUILD}  MAC_ARCH=${MAC_ARCH}"
 
 # Ink/Stitch's Makefile `dist` target = generate-version-file + locales + inx + build-python + build-distribution-archives
 _log "Running make distclean + make dist (Ink/Stitch) ..."
-( cd "${INKSTITCH_SRC}" && make distclean && make dist )
+# GITHUB_REF must be unset: when set, Ink/Stitch's build-python tries to
+# import Ink/Stitch's own release signing certificates (bin/import-macos-keys),
+# which we don't have — we sign the bundle ourselves in 04-bundle.sh.
+( cd "${INKSTITCH_SRC}" && env -u GITHUB_REF make distclean && env -u GITHUB_REF make dist )
 
 DIST_APP="${INKSTITCH_SRC}/dist/inkstitch.app"
 [[ -d "${DIST_APP}" ]] || _die "Expected ${DIST_APP} after make dist, but it is missing."
