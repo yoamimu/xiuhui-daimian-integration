@@ -103,7 +103,17 @@ _log "Updating Homebrew formulae index..."
 brew update
 
 _log "Installing pinned poppler 25.05.0 (newer poppler breaks pdfinput)..."
-brew install "${SCRIPT_DIR}/pinned/poppler.rb" \
+# Newer Homebrew rejects direct path installs ("formulae must be in a tap"),
+# so vendored formulas go into a minimal local tap first.
+PIN_TAP_DIR="$(brew --repository)/Library/Taps/xiuhui/homebrew-pinned"
+mkdir -p "${PIN_TAP_DIR}/Formula"
+cp "${SCRIPT_DIR}/pinned/"*.rb "${PIN_TAP_DIR}/Formula/" 2>/dev/null || true
+if [ ! -e "${PIN_TAP_DIR}/.git" ]; then
+    git -C "${PIN_TAP_DIR}" init -q .
+    git -C "${PIN_TAP_DIR}" add -A
+    git -C "${PIN_TAP_DIR}" -c user.email=ci@local -c user.name=ci commit -qm init 2>/dev/null || true
+fi
+brew install xiuhui/pinned/poppler \
     || _warn "pinned poppler install failed; falling back to core poppler"
 
 _log "Installing build dependencies from ${BREWFILE}..."
