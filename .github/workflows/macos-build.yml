@@ -50,28 +50,34 @@ jobs:
           mkdir -p "$HOME/xiuhui-build/inkscape-inkstitch-preview/src"
           ln -sfn "$GITHUB_WORKSPACE" "$HOME/xiuhui-build/xiuhui-daimian-integration"
 
-      - name: Clone upstream sources (pinned base commits)
+      - name: Fetch pinned upstream sources (pre-cloned bundle)
         working-directory: ${{ env.HOME }}/xiuhui-build/inkscape-inkstitch-preview/src
         run: |
-          # GitLab rate-limits anonymous clones from GitHub runner IPs (HTTP
-          # 403), so use the official GitHub mirror and rewrite submodule URLs
-          # pointing at GitLab to the same mirror. Retry a few times on flake.
-          git config --global url."https://github.com/inkscape/".insteadOf "https://gitlab.com/inkscape/"
-          clone_retry() {
-            for i in 1 2 3; do
-              if git clone --recurse-submodules "$1" "$2"; then return 0; fi
-              echo "clone attempt $i failed; retrying in 20s..."
-              rm -rf "$2"
-              sleep 20
-            done
-            return 1
-          }
-          # Inkscape (base 7923d92)
-          clone_retry https://github.com/inkscape/inkscape.git inkscape
-          cd inkscape && git checkout 7923d92 && git submodule update --init --recursive && cd ..
-          # Ink/Stitch (base 0312dac)
-          clone_retry https://github.com/inkstitch/inkstitch.git inkstitch
-          cd inkstitch && git checkout 0312dac && git submodule update --init --recursive
+          # GitLab rate-limits git clones from GitHub runner IPs (HTTP 403)
+          # and the GitHub inkscape repo is NOT a mirror of the GitLab master
+          # history, so we fetch a pre-cloned, pinned snapshot (inkscape
+          # 7923d92 + inkstitch 0312dac incl. submodules) from our own
+          # release assets instead.
+          EXPECTED="b4525c08299e4f8b9fedbe38424f60cdd2bf19c96c8fdd30f61fddf012d6d40f"
+          for i in 1 2 3; do
+            curl -fL --retry 3 -o sources.tar.gz \
+              "https://github.com/yoamimu/xiuhui-daimian-integration/releases/download/upstream-sources-r1/xiuhui-upstream-sources.tar.gz" && break
+            echo "download attempt $i failed; retrying in 20s..."
+            sleep 20
+          done
+          echo "$EXPECTED  sources.tar.gz" | shasum -a 256 -c -
+          tar xzf sources.tar.gz
+          rm -f sources.tar.gz
+          # 01-apply-patches.sh expects git repos (git apply); create
+          # minimal ones over the pristine trees.
+          for d in inkscape inkstitch; do
+            cd "$d"
+            git init -q
+            git add -A
+            git -c user.email=ci@example.com -c user.name=ci commit -qm "pinned upstream base"
+            cd ..
+          done
+          ls -d inkscape inkstitch
 
       - name: Bootstrap (Homebrew deps)
         run: bash scripts/macos/00-bootstrap.sh
