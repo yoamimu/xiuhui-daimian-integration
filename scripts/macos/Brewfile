@@ -58,7 +58,7 @@ brew "geos"
 brew "libffi"
 brew "gnu-getopt"
 brew "libiconv"
-brew "libwebp"
+brew "webp"   # provides libwebp (formula renamed from libwebp)
 brew "pango"
 brew "cairo"
 brew "gobject-introspection"
