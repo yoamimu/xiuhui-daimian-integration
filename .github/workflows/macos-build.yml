@@ -79,8 +79,22 @@ jobs:
           done
           ls -d inkscape inkstitch
 
+      - name: Select Xcode (clang >=16 for C++20 parenthesized aggregate init)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+
       - name: Bootstrap (Homebrew deps)
         run: bash scripts/macos/00-bootstrap.sh
+        working-directory: ${{ env.HOME }}/xiuhui-build/xiuhui-daimian-integration
+
+      # On Intel runners python@3.13 has no bottle and its post-build link can
+      # conflict with the runner's preinstalled python; repair and continue.
+      - name: Repair python link (x86_64)
+        if: matrix.arch == 'x86_64'
+        run: |
+          brew link --overwrite python@3.13 || true
+          brew bundle install --file=scripts/macos/Brewfile || true
         working-directory: ${{ env.HOME }}/xiuhui-build/xiuhui-daimian-integration
 
       - name: Apply patches + overlays
