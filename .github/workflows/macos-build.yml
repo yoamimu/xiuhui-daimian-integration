@@ -24,12 +24,13 @@ jobs:
             runner: macos-14            # Apple Silicon
             brew_prefix: /opt/homebrew
           - arch: x86_64
-            runner: macos-13            # Intel
+            runner: macos-15-intel       # Intel（macos-13 已退役）
             brew_prefix: /usr/local
 
     runs-on: ${{ matrix.runner }}
 
     env:
+      HOME: /Users/runner            # 供 working-directory 的 ${{ env.HOME }} 使用
       MAC_ARCH: ${{ matrix.arch }}
       # 未配置 Secrets 时走 ad-hoc 签名 + 跳过公证；配置后自动启用。
       SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY || '' }}
