@@ -44,7 +44,9 @@ brew "jpeg-xl"
 brew "libspelling"
 brew "libvisio"
 brew "libwpg"
-brew "poppler"
+# poppler is NOT listed here: scripts/macos/pinned/poppler.rb pins it to
+# 25.05.0 (newer poppler breaks Inkscape@7923d92 pdfinput API), installed
+# by 00-bootstrap.sh before this bundle runs.
 brew "potrace"
 
 # --- Python runtime + Inkscape extension deps ---

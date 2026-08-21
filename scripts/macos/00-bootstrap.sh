@@ -102,6 +102,10 @@ BREWFILE="${SCRIPT_DIR}/Brewfile"
 _log "Updating Homebrew formulae index..."
 brew update
 
+_log "Installing pinned poppler 25.05.0 (newer poppler breaks pdfinput)..."
+brew install "${SCRIPT_DIR}/pinned/poppler.rb" \
+    || _warn "pinned poppler install failed; falling back to core poppler"
+
 _log "Installing build dependencies from ${BREWFILE}..."
 # --no-lock was removed in newer Homebrew/bundle; fall back gracefully.
 # On Intel runners python@3.13 builds from source and its link step can

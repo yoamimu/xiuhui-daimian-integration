@@ -80,6 +80,7 @@ jobs:
           ls -d inkscape inkstitch
 
       - name: Select newest Xcode (clang >=16 for C++20 parenthesized aggregate init)
+        if: matrix.arch == 'arm64'
         run: |
           ls -d /Applications/Xcode*.app | sort -V | tail -3
           sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
