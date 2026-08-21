@@ -33,7 +33,9 @@ jobs:
       MAC_ARCH: ${{ matrix.arch }}
       # 未配置 Secrets 时走 ad-hoc 签名 + 跳过公证；配置后自动启用。
       SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY || '' }}
-      NOTARIZE: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && '1' || '0' }}
+      # 公证：优先 App Store Connect API Key（MACOS_API_KEY*），
+      # 兼容旧的 Apple ID + App 专用密码方式。
+      NOTARIZE: ${{ (secrets.MACOS_API_KEY != '' && secrets.MACOS_API_KEY_ID != '' && secrets.MACOS_API_ISSUER != '') || secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && '1' || '0' }}
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
@@ -86,6 +88,18 @@ jobs:
       - name: Bundle + sign
         run: bash scripts/macos/04-bundle.sh
         working-directory: ${{ env.HOME }}/xiuhui-build/xiuhui-daimian-integration
+
+      - name: Bundle self-contained dylibs
+        run: bash scripts/macos/04b-bundle-dylibs.sh
+        working-directory: ${{ env.HOME }}/xiuhui-build/xiuhui-daimian-integration
+
+      - name: Prepare notarization API key (optional)
+        if: env.NOTARIZE == '1' && env.APPLE_APP_SPECIFIC_PASSWORD == ''
+        run: |
+          echo "${{ secrets.MACOS_API_KEY }}" | base64 --decode > "$HOME/api-key.p8"
+          echo "APPLE_API_KEY_FILE=$HOME/api-key.p8" >> "$GITHUB_ENV"
+          echo "APPLE_API_KEY_ID=${{ secrets.MACOS_API_KEY_ID }}" >> "$GITHUB_ENV"
+          echo "APPLE_API_ISSUER=${{ secrets.MACOS_API_ISSUER }}" >> "$GITHUB_ENV"
 
       - name: Make dmg (+ notarize if configured)
         run: bash scripts/macos/05-make-dmg.sh

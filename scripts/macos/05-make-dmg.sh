@@ -100,6 +100,20 @@ _log "DMG written to: ${DMG_OUT}"
 ls -lh "${DMG_OUT}"
 shasum -a 256 "${DMG_OUT}"
 
+# ---------- ensure UDZO (compressed, notarizable) ----------
+# create-dmg 在 AppleScript 美化超时时会留下未压缩的 UDRW 映像
+# （脚本上方已按 rw.<pid> 前缀重命名接管）。UDRW 无法被 notarytool
+# 接受，这里检测并原地转换为 UDZO。
+FMT="$(hdiutil imageinfo "${DMG_OUT}" 2>/dev/null | awk -F': ' '/^Format:/{print $2}' | tr -d ' ')"
+if [[ "${FMT}" != "UDZO" ]]; then
+    _log "DMG format is '${FMT:-unknown}'; converting to UDZO ..."
+    TMP_CONV="${RELEASE_DIR}/conv.$$.$(basename "${DMG_OUT}")"
+    hdiutil convert "${DMG_OUT}" -format UDZO -o "${TMP_CONV}"
+    mv -f "${TMP_CONV}" "${DMG_OUT}"
+    _log "Converted:"
+    ls -lh "${DMG_OUT}"
+fi
+
 # ---------- notarization (optional) ----------
 # If NOTARIZE=1, submit the freshly-built dmg to Apple's notary service.
 # Requires an App Store Connect API key or App-specific password — see

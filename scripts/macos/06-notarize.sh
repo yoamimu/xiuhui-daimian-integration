@@ -36,7 +36,10 @@ DMG_PATH="${1:-}"
 
 # ---------- credential resolution ----------
 # Prefer explicit env vars (CI) over the keychain profile (local).
-if [[ -n "${APPLE_ID:-}" && -n "${APPLE_APP_SPECIFIC_PASSWORD:-}" && -n "${TEAM_ID:-}" ]]; then
+if [[ -n "${APPLE_API_KEY_FILE:-}" && -n "${APPLE_API_KEY_ID:-}" && -n "${APPLE_API_ISSUER:-}" && -n "${TEAM_ID:-}" ]]; then
+    _log "Using App Store Connect API key from environment."
+    AUTH_ARGS=(--key "${APPLE_API_KEY_FILE}" --key-id "${APPLE_API_KEY_ID}" --issuer "${APPLE_API_ISSUER}" --team-id "${TEAM_ID}")
+elif [[ -n "${APPLE_ID:-}" && -n "${APPLE_APP_SPECIFIC_PASSWORD:-}" && -n "${TEAM_ID:-}" ]]; then
     _log "Using APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / TEAM_ID from environment."
     AUTH_ARGS=(--apple-id "${APPLE_ID}" --password "${APPLE_APP_SPECIFIC_PASSWORD}" --team-id "${TEAM_ID}")
 else

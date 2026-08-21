@@ -2,7 +2,7 @@ diff --git a/share/ui/toolbar-commands.ui b/share/ui/toolbar-commands.ui
 index 767201d..164e74f 100644
 --- a/share/ui/toolbar-commands.ui
 +++ b/share/ui/toolbar-commands.ui
-@@ -1,6 +1,36 @@
+@@ -1,6 +1,42 @@
  <?xml version="1.0" encoding="UTF-8"?>
  <interface>
    <requires lib="gtk" version="4.0"/>
@@ -33,6 +33,12 @@ index 767201d..164e74f 100644
 +      <item>
 +        <attribute name="label" translatable="no">对象疑难解答</attribute>
 +        <attribute name="action">app.org.inkstitch.troubleshoot</attribute>
++      </item>
++    </section>
++    <section>
++      <item>
++        <attribute name="label" translatable="no">关于 Ink/Stitch</attribute>
++        <attribute name="action">app.org.inkstitch.about</attribute>
 +      </item>
 +    </section>
 +  </menu>
@@ -633,7 +639,7 @@ index de2d77b..7473aa1 100644
  CanvasGrid::CanvasGrid(SPDesktopWidget *dtw)
  {
      _dtw = dtw;
-@@ -70,6 +609,489 @@ CanvasGrid::CanvasGrid(SPDesktopWidget *dtw)
+@@ -70,6 +609,487 @@ CanvasGrid::CanvasGrid(SPDesktopWidget *dtw)
      _canvas_overlay.add_overlay(*_notice);
      _canvas_overlay.set_expand();
  
@@ -700,7 +706,6 @@ index de2d77b..7473aa1 100644
 +    };
 +    setup_icon_button(_inkstitch_preferences_button, "preferences-system", "Ink/Stitch: 偏好设置",
 +                      "app.org.inkstitch.preferences");
-+    setup_icon_button(_inkstitch_about_button, "help-about", "Ink/Stitch: 关于", "app.org.inkstitch.about");
 +
 +    struct PanelUiState {
 +        std::vector<PanelAction> actions;
@@ -725,7 +730,7 @@ index de2d77b..7473aa1 100644
 +    state->categories = {"针法", "填充", "缎纹", "描边", "文字", "线色", "命令", "检查", "预览导出", "字体", "编辑"};
 +    state->actions = {
 +        {"org.inkstitch.params", "刺绣参数", "针法", "embrodery-stitch", "调整刺绣参数"},
-+        {"org.inkstitch.sew-stack-editor", "缝制堆栈（预览）...", "针法", "view-list", "缝制堆栈（预览）..."},
++        {"org.inkstitch.sew-stack-editor", "缝制堆栈（预览）...", "针法", "layout-list", "缝制堆栈（预览）..."},
 +        {"org.inkstitch.cutwork-segmentation", "镂空绣分段...", "针法", "edit-cut", "根据切割角度将路径拆分为镂空绣分段"},
 +        {"org.inkstitch.install", "安装附加资源...", "针法", "list-add", "将调色板或图案针迹符号库安装到 Inkscape"},
 +
@@ -751,22 +756,22 @@ index de2d77b..7473aa1 100644
 +        {"org.inkstitch.jump-to-stroke", "跳针转描边", "描边", "object-select", "将所选元素之间的跳针转换为平针"},
 +        {"org.inkstitch.outline", "轮廓", "描边", "object-select", "围绕针迹路径生成轮廓"},
 +
-+        {"org.inkstitch.lettering", "文字刺绣工具", "文字", "insert-text", "向文档插入可直接刺绣的文字"},
-+        {"org.inkstitch.lettering-along-path", "沿路径文字刺绣", "文字", "insert-text", "将一行文字贴合到路径"},
++        {"org.inkstitch.lettering", "文字刺绣工具", "文字", "draw-text", "向文档插入可直接刺绣的文字"},
++        {"org.inkstitch.lettering-along-path", "沿路径文字刺绣", "文字", "draw-text", "将一行文字贴合到路径"},
 +
-+        {"org.inkstitch.apply-palette", "应用调色板", "线色", "preferences-color", "将文档中所有元素的颜色匹配到指定调色板"},
-+        {"org.inkstitch.apply-threadlist", "应用线色表", "线色", "preferences-color", "将指定颜色文件中的颜色应用到本文档对象"},
-+        {"org.inkstitch.palette-to-text", "调色板转文字", "线色", "preferences-color", "将绣线调色板作为彩色文字导入"},
-+        {"org.inkstitch.install-custom-palette", "安装自定义调色板", "线色", "preferences-color", "将自定义调色板安装到 Inkscape"},
-+        {"org.inkstitch.generate-palette", "生成线色调色板", "线色", "preferences-color", "从彩色文字元素生成自定义调色板"},
-+        {"org.inkstitch.palette-split-text", "拆分文字", "线色", "preferences-color", "拆分文字"},
++        {"org.inkstitch.apply-palette", "应用调色板", "线色", "color-palette", "将文档中所有元素的颜色匹配到指定调色板"},
++        {"org.inkstitch.apply-threadlist", "应用线色表", "线色", "color-palette", "将指定颜色文件中的颜色应用到本文档对象"},
++        {"org.inkstitch.palette-to-text", "调色板转文字", "线色", "color-palette", "将绣线调色板作为彩色文字导入"},
++        {"org.inkstitch.install-custom-palette", "安装自定义调色板", "线色", "color-palette", "将自定义调色板安装到 Inkscape"},
++        {"org.inkstitch.generate-palette", "生成线色调色板", "线色", "color-palette", "从彩色文字元素生成自定义调色板"},
++        {"org.inkstitch.palette-split-text", "拆分文字", "线色", "color-palette", "拆分文字"},
 +
-+        {"org.inkstitch.commands", "将命令附加到所选对象", "命令", "insert-object", "添加影响选定元素的命令"},
-+        {"org.inkstitch.global-commands", "添加命令", "命令", "insert-object", "添加影响整个文档的命令"},
-+        {"org.inkstitch.layer-commands", "添加图层命令", "命令", "insert-object", "添加影响所选图层的命令"},
-+        {"org.inkstitch.object-commands-toggle-visibility", "显示/隐藏对象命令", "命令", "insert-object", "显示/隐藏对象命令"},
-+        {"org.inkstitch.commands-scale-symbols", "缩放命令符号", "命令", "insert-object", "统一调整所有命令符号大小"},
-+        {"org.inkstitch.jump-to-trim", "跳针转剪线/停止命令", "命令", "insert-object", "为后接跳针的元素设置剪线命令"},
++        {"org.inkstitch.commands", "将命令附加到所选对象", "命令", "list-add", "添加影响选定元素的命令"},
++        {"org.inkstitch.global-commands", "添加命令", "命令", "list-add", "添加影响整个文档的命令"},
++        {"org.inkstitch.layer-commands", "添加图层命令", "命令", "list-add", "添加影响所选图层的命令"},
++        {"org.inkstitch.object-commands-toggle-visibility", "显示/隐藏对象命令", "命令", "list-add", "显示/隐藏对象命令"},
++        {"org.inkstitch.commands-scale-symbols", "缩放命令符号", "命令", "list-add", "统一调整所有命令符号大小"},
++        {"org.inkstitch.jump-to-trim", "跳针转剪线/停止命令", "命令", "list-add", "为后接跳针的元素设置剪线命令"},
 +
 +        {"org.inkstitch.troubleshoot", "对象疑难解答", "检查", "dialog-warning", "标记文档或选区中有问题的位置"},
 +        {"org.inkstitch.element-info", "元素信息", "检查", "dialog-warning", "显示所选元素的刺绣信息"},
@@ -774,36 +779,36 @@ index de2d77b..7473aa1 100644
 +        {"org.inkstitch.remove-embroidery-settings", "移除刺绣设置", "检查", "dialog-warning", "从文档中移除指定或全部刺绣设置"},
 +        {"org.inkstitch.update-svg", "更新 Ink/Stitch SVG", "检查", "dialog-warning", "更新 Ink/Stitch SVG"},
 +
-+        {"org.inkstitch.stitch-plan-preview", "针迹方案预览", "预览导出", "document-print-preview", "针迹方案预览"},
++        {"org.inkstitch.stitch-plan-preview", "针迹方案预览", "预览导出", "preview-mode", "针迹方案预览"},
 +        {"org.inkstitch.stitch-plan-preview-undo", "撤销针迹方案预览", "预览导出", "document-revert", "撤销针迹方案预览"},
-+        {"org.inkstitch.simulator", "模拟器", "预览导出", "media-playback-start", "模拟器"},
-+        {"org.inkstitch.density-map", "密度图", "预览导出", "document-print-preview", "在每个针迹位置显示彩色点"},
-+        {"org.inkstitch.display-stacking-order", "显示堆叠顺序", "预览导出", "view-list", "生成编号标签以显示刺绣顺序"},
++        {"org.inkstitch.simulator", "模拟器", "预览导出", "play", "模拟器"},
++        {"org.inkstitch.density-map", "密度图", "预览导出", "preview-mode", "在每个针迹位置显示彩色点"},
++        {"org.inkstitch.display-stacking-order", "显示堆叠顺序", "预览导出", "layout-list", "生成编号标签以显示刺绣顺序"},
 +        {"win.dialog-open('Export')", "导出 DST", "预览导出", "document-save-as", "打开导出面板，默认使用 DST 格式"},
 +        {"org.inkstitch.print", "PDF 导出", "预览导出", "document-print", "PDF 导出"},
 +
-+        {"org.inkstitch.lettering-custom-font-dir", "自定义字体目录", "字体", "font-select", "为文字刺绣工具指定自定义字体目录"},
-+        {"org.inkstitch.lettering-generate-json", "生成 JSON", "字体", "font-select", "生成字体 JSON 文件，使其可用于文字刺绣工具"},
-+        {"org.inkstitch.lettering-edit-json", "编辑 JSON", "字体", "font-select", "验证或更新现有字体信息文件"},
-+        {"org.inkstitch.lettering-svg-font-to-layers", "SVG 字体转字形图层", "字体", "font-select", "将 SVG 字体转换为字形图层"},
-+        {"org.inkstitch.lettering-font-sample", "字体采样", "字体", "font-select", "将指定字体的所有字形插入文档"},
-+        {"org.inkstitch.letters-to-font", "字母转字体", "字体", "font-select", "将预数字化字体的所有可用字形插入文档"},
-+        {"org.inkstitch.organize-glyphs", "整理字形", "字体", "font-select", "辅助处理组合字形"},
-+        {"org.inkstitch.lettering-remove-kerning", "移除字距调整", "字体", "font-select", "从指定 SVG 文件中移除字距调整信息"},
-+        {"org.inkstitch.force-lock-stitches", "强制锁针", "字体", "font-select", "为元素设置强制锁针属性"},
-+        {"org.inkstitch.lettering-set-color-sort-index", "设置颜色排序索引", "字体", "font-select", "定义多色字体的堆叠顺序"},
++        {"org.inkstitch.lettering-custom-font-dir", "自定义字体目录", "字体", "dialog-text-and-font", "为文字刺绣工具指定自定义字体目录"},
++        {"org.inkstitch.lettering-generate-json", "生成 JSON", "字体", "dialog-text-and-font", "生成字体 JSON 文件，使其可用于文字刺绣工具"},
++        {"org.inkstitch.lettering-edit-json", "编辑 JSON", "字体", "dialog-text-and-font", "验证或更新现有字体信息文件"},
++        {"org.inkstitch.lettering-svg-font-to-layers", "SVG 字体转字形图层", "字体", "dialog-text-and-font", "将 SVG 字体转换为字形图层"},
++        {"org.inkstitch.lettering-font-sample", "字体采样", "字体", "dialog-text-and-font", "将指定字体的所有字形插入文档"},
++        {"org.inkstitch.letters-to-font", "字母转字体", "字体", "dialog-text-and-font", "将预数字化字体的所有可用字形插入文档"},
++        {"org.inkstitch.organize-glyphs", "整理字形", "字体", "dialog-text-and-font", "辅助处理组合字形"},
++        {"org.inkstitch.lettering-remove-kerning", "移除字距调整", "字体", "dialog-text-and-font", "从指定 SVG 文件中移除字距调整信息"},
++        {"org.inkstitch.force-lock-stitches", "强制锁针", "字体", "dialog-text-and-font", "为元素设置强制锁针属性"},
++        {"org.inkstitch.lettering-set-color-sort-index", "设置颜色排序索引", "字体", "dialog-text-and-font", "定义多色字体的堆叠顺序"},
 +
-+        {"org.inkstitch.reorder", "按选择顺序重新排列对象堆叠", "编辑", "document-edit", "按选择顺序重新排列对象堆叠"},
-+        {"org.inkstitch.transform-elements", "变换", "编辑", "document-edit", "旋转或翻转刺绣元素，同时变换针迹角度"},
-+        {"org.inkstitch.duplicate-params", "复制刺绣参数", "编辑", "document-edit", "将第一个选定元素的参数应用于其余选定元素"},
-+        {"org.inkstitch.apply-attribute", "应用属性", "编辑", "document-edit", "将自定义属性应用到多个元素"},
++        {"org.inkstitch.reorder", "按选择顺序重新排列对象堆叠", "编辑", "edit", "按选择顺序重新排列对象堆叠"},
++        {"org.inkstitch.transform-elements", "变换", "编辑", "edit", "旋转或翻转刺绣元素，同时变换针迹角度"},
++        {"org.inkstitch.duplicate-params", "复制刺绣参数", "编辑", "edit", "将第一个选定元素的参数应用于其余选定元素"},
++        {"org.inkstitch.apply-attribute", "应用属性", "编辑", "edit", "将自定义属性应用到多个元素"},
 +        {"org.inkstitch.select-elements", "选择刺绣元素", "编辑", "object-select", "选择刺绣元素"},
-+        {"org.inkstitch.selection-to-pattern", "所选对象转图案", "编辑", "document-edit", "将所选元素标记为图案"},
-+        {"org.inkstitch.selection-to-guide-line", "所选对象转引导线", "编辑", "document-edit", "将所选元素标记为引导线"},
-+        {"org.inkstitch.selection-to-anchor-line", "所选对象转锚定线", "编辑", "document-edit", "将所选元素标记为锚定线"},
-+        {"org.inkstitch.unlink-clone", "取消克隆链接", "编辑", "document-edit", "取消克隆链接并应用填充针迹角度"},
-+        {"org.inkstitch.remove-duplicated-points", "移除重复点", "编辑", "document-edit", "移除重复点"},
-+        {"org.inkstitch.test-swatches", "生成测试样片", "编辑", "document-edit", "从所选对象生成测试样片"},
++        {"org.inkstitch.selection-to-pattern", "所选对象转图案", "编辑", "edit", "将所选元素标记为图案"},
++        {"org.inkstitch.selection-to-guide-line", "所选对象转引导线", "编辑", "edit", "将所选元素标记为引导线"},
++        {"org.inkstitch.selection-to-anchor-line", "所选对象转锚定线", "编辑", "edit", "将所选元素标记为锚定线"},
++        {"org.inkstitch.unlink-clone", "取消克隆链接", "编辑", "edit", "取消克隆链接并应用填充针迹角度"},
++        {"org.inkstitch.remove-duplicated-points", "移除重复点", "编辑", "edit", "移除重复点"},
++        {"org.inkstitch.test-swatches", "生成测试样片", "编辑", "edit", "从所选对象生成测试样片"},
 +    };
 +
 +    state->default_favorites = {
@@ -1108,7 +1113,6 @@ index de2d77b..7473aa1 100644
 +    footer->set_valign(Gtk::Align::END);
 +    footer->set_vexpand(false);
 +    footer->append(_inkstitch_preferences_button);
-+    footer->append(_inkstitch_about_button);
 +
 +    _inkstitch_action_panel = std::make_unique<FloatingActionPanel>("Ink/Stitch", 184, 18, 560, 480, 360, 300);
 +    _inkstitch_action_panel->enable_minimize("全部收起", "展开 Ink/Stitch");
@@ -1144,7 +1148,7 @@ index 5c59bec..b7feef3 100644
  class Ruler;
  class Stack;
  class TabsWidget;
-@@ -140,6 +143,23 @@ private:
+@@ -140,6 +143,22 @@ private:
      Gtk::ToggleButton _guide_lock;
      Gtk::ToggleButton _cms_adjust;
      Gtk::MenuButton _quick_actions;
@@ -1164,7 +1168,6 @@ index 5c59bec..b7feef3 100644
 +    Gtk::Button _inkstitch_commands_button;
 +    Gtk::Button _inkstitch_lettering_path_button;
 +    Gtk::Button _inkstitch_preferences_button;
-+    Gtk::Button _inkstitch_about_button;
      Glib::RefPtr<Gtk::Builder> _builder_display_popup;
  
      // To be replaced by stateful Gio::Actions

@@ -66,8 +66,9 @@ _log "Applying Ink/Stitch patch..."
 git -C "${INKSTITCH_SRC}" apply "${INKSTITCH_PATCH}"
 
 _log "Copying overlays..."
-mkdir -p "${INKSTITCH_SRC}/lib" "${INKSTITCH_SRC}/docs"
+mkdir -p "${INKSTITCH_SRC}/lib" "${INKSTITCH_SRC}/lib/gui" "${INKSTITCH_SRC}/docs"
 cp -f "${REPO_ROOT}/overlays/inkstitch/lib/i18n_zh_cn.py"      "${INKSTITCH_SRC}/lib/i18n_zh_cn.py"
+cp -f "${REPO_ROOT}/overlays/inkstitch/lib/gui/preferences.py"   "${INKSTITCH_SRC}/lib/gui/preferences.py"
 cp -f "${REPO_ROOT}/overlays/inkstitch/docs/zh_CN_terminology.md" "${INKSTITCH_SRC}/docs/zh_CN_terminology.md"
 
 _log "Done. Next: bash 02-build-inkscape.sh"

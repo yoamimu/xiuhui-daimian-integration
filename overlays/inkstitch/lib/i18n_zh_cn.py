@@ -93,6 +93,7 @@ ZH_CN_FALLBACKS = {
     "Overwrite": "覆盖",
     "Delete": "删除",
     "Cancel": "取消",
+    "OK": "确定",
     "Use Last Settings": "沿用上次设定",
     "Apply and Quit": "应用并关闭",
     "Presets": "预设",
@@ -1006,6 +1007,20 @@ TOOLTIP_FALLBACKS = {
     "default: half of contour underlay inset": "默认：轮廓底针内缩量的一半。",
     "lengthen stitch across rails at most this percent. Two values separated by a space may be used for an asymmetric effect.": "跨轨道针迹最多按此百分比加长。可输入两个用空格分隔的数值来产生非对称效果。",
     "shorten stitch across rails at most this percent. Two values separated by a space may be used for an asymmetric effect.": "跨轨道针迹最多按此百分比缩短。可输入两个用空格分隔的数值来产生非对称效果。",
+    # Ink/Stitch Preferences dialog (lib/gui/preferences.py).
+    "Minimum jump stitch length": "最小跳针长度",
+    "Default minimum jump stitch length": "默认最小跳针长度",
+    "Minimum stitch length": "最小针迹长度",
+    "Minimum satin stroke width": "最小缎纹针迹宽度",
+    "Rotate on export": "导出时旋转",
+    "Stitch plan cache size (0 to disable cache)": "针迹规划缓存大小（0 表示禁用缓存）",
+    "Set As Default": "设为默认",
+    "Clear Stitch Plan Cache": "清空针迹规划缓存",
+    "Don't rotate": "不旋转",
+    "Rotate left": "向左旋转",
+    "Jump stitches smaller than this will be treated as normal stitches.": "短于此值的跳针将被当作普通针迹处理。",
+    "Strokes thinner than this value will not take a satin parameter.": "窄于此值的描边不会被识别为缎纹针迹。",
+    "Rotates the embroidery by the given degrees on export. Useful e.g. when the orientation of a hoop does not match the orientation of the design.": "导出时按指定角度旋转刺绣。例如绣框方向与设计方向不一致时使用。",
 }
 
 ZH_CN_FALLBACKS.update(TOOLTIP_FALLBACKS)

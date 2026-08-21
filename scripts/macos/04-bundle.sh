@@ -14,6 +14,7 @@
 set -euo pipefail
 
 _log()  { printf '\033[1;34m[04-bundle]\033[0m %s\n' "$*"; }
+_warn() { printf '\033[1;33m[04-bundle]\033[0m %s\n' "$*" >&2; }
 _die()  { printf '\033[1;31m[04-bundle]\033[0m %s\n' "$*" >&2; exit 1; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -82,20 +83,22 @@ mkdir -p "${EXT_DEST}"
 # remain siblings exactly as the bootloader expects.
 cp -a "${INKSTITCH_DIST_APP}/Contents/." "${EXT_DEST}/Contents/"
 
-# Hoist the inx/ directory to the extension root and fix the relative paths.
+# Keep a second copy of the inx/ directory inside Contents/ so Inkscape's
+# recursive extension scanner finds it, and fix the relative paths.
+#
+# NOTE: the copy MUST NOT live at the bundle root (inkstitch.app/inx/).
+# Files directly in an .app bundle root make codesign fail with
+# "unsealed contents present in the bundle root", which breaks Developer ID
+# signing / notarization. Contents/inx/ is inside the bundle and signs fine.
+#
 # Upstream *.inx files reference "../icons/<...>", which assumes inx/ sits two
-# levels deep (Contents/Resources/inx/). After hoisting to the extension root,
-# those resolve against inkstitch.app/ instead of Contents/Resources/. Rewrite
-# them to "../Contents/Resources/icons/<...>" so Inkscape finds the bundled
-# SVG icons.
+# levels deep (Contents/Resources/inx/). From Contents/inx/ we rewrite:
+#   ../../MacOS/inkstitch            → ../MacOS/inkstitch
+#   ../icons/<...>                   → ../Resources/icons/<...>
 if [[ -d "${EXT_DEST}/Contents/Resources/inx" ]]; then
-    cp -a "${EXT_DEST}/Contents/Resources/inx" "${EXT_DEST}/inx"
-    # ../../MacOS/inkstitch  (upstream, assumes Resources/inx/ 2 levels deep)
-    # → ../Contents/MacOS/inkstitch (relative to the hoisted extension-root inx/)
-    sed -i '' 's|../../MacOS/inkstitch|../Contents/MacOS/inkstitch|g' "${EXT_DEST}/inx/"*.inx
-    # ../icons/  (upstream, also assumes Resources/inx/ 2 levels deep)
-    # → ../Contents/Resources/icons/  (the hoisted inx/ now sits at the extension root)
-    sed -i '' 's|\.\./icons/|../Contents/Resources/icons/|g' "${EXT_DEST}/inx/"*.inx
+    cp -a "${EXT_DEST}/Contents/Resources/inx" "${EXT_DEST}/Contents/inx"
+    sed -i '' 's|../../MacOS/inkstitch|../MacOS/inkstitch|g' "${EXT_DEST}/Contents/inx/"*.inx
+    sed -i '' 's|\.\./icons/|../Resources/icons/|g' "${EXT_DEST}/Contents/inx/"*.inx
 
     # ---------- 2b. override fragile SVG icons ----------
     # Two upstream Ink/Stitch icons fail to render in Inkscape's extension
@@ -108,7 +111,7 @@ if [[ -d "${EXT_DEST}/Contents/Resources/inx" ]]; then
     # Rather than debug upstream, we ship our own raster-friendly versions
     # from assets/macos-icons/ and overwrite the upstream copies in the
     # installed PyInstaller bundle.
-    local MAC_ICONS="${INTEG_REPO_ROOT}/assets/macos-icons"
+    MAC_ICONS="${INTEG_REPO_ROOT}/assets/macos-icons"
     if [[ -d "${MAC_ICONS}" ]]; then
         _log "Overriding fragile Ink/Stitch SVG icons from ${MAC_ICONS} ..."
         for svg in lettering stitch_plan_preview; do
@@ -150,6 +153,57 @@ if [[ -f "${BRAND_ICNS}" ]]; then
 else
     _warn "Brand icon not found at ${BRAND_ICNS}; keeping default icon."
 fi
+
+# ---------- 3c. install icon aliases used by older prebuilt UI code ----------
+# The Ink/Stitch floating panel originally used a few freedesktop icon names
+# that are not shipped in Inkscape's bundled icon theme on macOS.  Keep aliases
+# in the app bundle so re-running this bundling step fixes existing binaries
+# even before the Inkscape source is rebuilt with the newer icon names.
+ICON_ROOT="${FINAL_APP}/Contents/Resources/share/inkscape/icons"
+install_icon_alias() {
+    local old="$1"
+    local new="$2"
+    local dir dst src
+
+    for dir in \
+        "hicolor/scalable/actions" \
+        "hicolor/symbolic/actions" \
+        "multicolor/symbolic/actions" \
+        "Dash/symbolic/actions"; do
+        mkdir -p "${ICON_ROOT}/${dir}"
+        case "${dir}" in
+            */scalable/actions)
+                dst="${ICON_ROOT}/${dir}/${old}.svg"
+                [[ -f "${ICON_ROOT}/${dir}/${new}.svg" ]] && src="${ICON_ROOT}/${dir}/${new}.svg" || src=""
+                ;;
+            *)
+                dst="${ICON_ROOT}/${dir}/${old}-symbolic.svg"
+                [[ -f "${ICON_ROOT}/${dir}/${new}-symbolic.svg" ]] && src="${ICON_ROOT}/${dir}/${new}-symbolic.svg" || src=""
+                ;;
+        esac
+        [[ -z "${src}" && -f "${ICON_ROOT}/hicolor/scalable/actions/${new}.svg" ]] && src="${ICON_ROOT}/hicolor/scalable/actions/${new}.svg"
+        [[ -z "${src}" && -f "${ICON_ROOT}/hicolor/symbolic/actions/${new}-symbolic.svg" ]] && src="${ICON_ROOT}/hicolor/symbolic/actions/${new}-symbolic.svg"
+        [[ -z "${src}" && -f "${ICON_ROOT}/multicolor/symbolic/actions/${new}-symbolic.svg" ]] && src="${ICON_ROOT}/multicolor/symbolic/actions/${new}-symbolic.svg"
+        [[ -z "${src}" && -f "${ICON_ROOT}/Dash/symbolic/actions/${new}-symbolic.svg" ]] && src="${ICON_ROOT}/Dash/symbolic/actions/${new}-symbolic.svg"
+
+        if [[ -n "${src}" ]]; then
+            cp -f "${src}" "${dst}"
+        else
+            _warn "Cannot create icon alias ${old} -> ${new}; source icon not found."
+        fi
+    done
+}
+
+_log "Installing Ink/Stitch floating-panel icon aliases ..."
+install_icon_alias "insert-text" "draw-text"
+install_icon_alias "document-print-preview" "preview-mode"
+install_icon_alias "help-about" "dialog-information"
+install_icon_alias "preferences-color" "color-palette"
+install_icon_alias "insert-object" "list-add"
+install_icon_alias "font-select" "dialog-text-and-font"
+install_icon_alias "document-edit" "edit"
+install_icon_alias "view-list" "layout-list"
+install_icon_alias "media-playback-start" "play"
 
 # ---------- 4. codesign EVERYTHING ----------
 # Signing strategy is selectable:

@@ -48,8 +48,11 @@ index b2a2b00..6605fc9 100644
 -    translation = gettext.translation("inkstitch", locale_dir, fallback=True)
 +    translation = gettext.translation("inkstitch", locale_dir, languages=languages, fallback=True)
      _ = translation.gettext
-+    if _uses_simplified_chinese(languages):
-+        _ = _with_zh_cn_fallback(_)
++    # Always enable Simplified Chinese fallback for the xiuhui-daimian integration.
++    # macOS app bundles do not reliably propagate the system locale to Inkscape
++    # extension subprocesses, so relying on environment variables alone leaves UI
++    # in English on Chinese systems.
++    _ = _with_zh_cn_fallback(_)
      return (_, translation)
  
  
