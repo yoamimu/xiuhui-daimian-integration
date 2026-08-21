@@ -79,10 +79,11 @@ jobs:
           done
           ls -d inkscape inkstitch
 
-      - name: Select Xcode (clang >=16 for C++20 parenthesized aggregate init)
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '16.4'
+      - name: Select newest Xcode (clang >=16 for C++20 parenthesized aggregate init)
+        run: |
+          ls -d /Applications/Xcode*.app | sort -V | tail -3
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          clang++ --version | head -1
 
       - name: Bootstrap (Homebrew deps)
         run: bash scripts/macos/00-bootstrap.sh

@@ -104,8 +104,12 @@ brew update
 
 _log "Installing build dependencies from ${BREWFILE}..."
 # --no-lock was removed in newer Homebrew/bundle; fall back gracefully.
+# On Intel runners python@3.13 builds from source and its link step can
+# conflict with the runner's preinstalled python — repair the link and retry.
 brew bundle install --file="${BREWFILE}" --no-lock 2>/dev/null \
-    || brew bundle install --file="${BREWFILE}"
+    || brew bundle install --file="${BREWFILE}" \
+    || { brew link --overwrite python@3.13 2>/dev/null || true;
+         brew bundle install --file="${BREWFILE}"; }
 
 # ---------- workspace check ----------
 PREVIEW_ROOT="${PREVIEW_ROOT:-${HOME}/xiuhui-build/inkscape-inkstitch-preview}"
