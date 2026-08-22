@@ -36,7 +36,7 @@ jobs:
       SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY || '' }}
       # 公证：优先 App Store Connect API Key（MACOS_API_KEY*），
       # 兼容旧的 Apple ID + App 专用密码方式。
-      NOTARIZE: ${{ (secrets.MACOS_API_KEY != '' && secrets.MACOS_API_KEY_ID != '' && secrets.MACOS_API_ISSUER != '') || secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && '1' || '0' }}
+      NOTARIZE: ${{ ((secrets.MACOS_API_KEY != '' && secrets.MACOS_API_KEY_ID != '' && secrets.MACOS_API_ISSUER != '') || secrets.APPLE_APP_SPECIFIC_PASSWORD != '') && '1' || '0' }}
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
