@@ -31,6 +31,7 @@ brew "gsl"
 brew "gtk4"
 brew "gtkmm4"
 brew "libxslt"
+brew "libxml2"   # else pkg-config falls back to CommandLineTools' libxml2, whose -isystem CLT-SDK paths break libc++ header resolution
 brew "gettext"
 brew "adwaita-icon-theme"   # GTK4 默认图标主题；缺失会导致启动时 SIGSEGV
 

@@ -45,7 +45,11 @@ ICU_PREFIX="$(brew --prefix icu4c 2>/dev/null || brew --prefix icu4c@77 2>/dev/n
 # libffi.pc (which points at the CommandLineTools SDK) wins and injects
 # "-I/.../CommandLineTools/SDKs/.../usr/include/ffi", causing the libc++
 # <cmath>/<math.h> isnan/signbit macro collision on macOS 26.
-export PKG_CONFIG_PATH="$(brew --prefix libffi)/lib/pkgconfig:$(brew --prefix)/Library/Homebrew/os/mac/pkgconfig/26:${ICU_PREFIX:+${ICU_PREFIX}/lib/pkgconfig:}$(brew --prefix gettext)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+# libxml2 likewise: without it pkg-config falls back to the CLT SDK's
+# libxml2.pc, whose -isystem CLT paths break libc++ header resolution on
+# Intel runners ("cstddef tried including stddef.h").
+export PKG_CONFIG_PATH="$(brew --prefix)/opt/libxml2/lib/pkgconfig:$(brew --prefix libffi)/lib/pkgconfig:$(brew --prefix)/Library/Homebrew/os/mac/pkgconfig/26:${ICU_PREFIX:+${ICU_PREFIX}/lib/pkgconfig:}$(brew --prefix gettext)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+export SDKROOT="$(xcrun --show-sdk-path)"
 export PATH="$(brew --prefix gettext)/bin:${PATH}"
 
 # Deployment target: match the build host major version. macOS 26+ users
