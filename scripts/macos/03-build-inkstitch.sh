@@ -56,6 +56,10 @@ fi
 source "${VENV_DIR}/bin/activate"
 python -m pip install --upgrade pip wheel
 python -m pip install -r "${INKSTITCH_SRC}/requirements.txt"
+# wxPython 4.3.x (wxWidgets 3.3) has a ColourPickerCtrl regression that
+# crashes the Ink/Stitch params dialog with "'ColourPickerCtrl' object has
+# no attribute 'SetPickerCtrl'"; the 4.2 series is known-good.
+python -m pip install "wxPython==4.2.*"
 python -m pip install pyinstaller
 
 # Version stamp for the dist artefacts. CHANGES.md "Unreleased" → use
