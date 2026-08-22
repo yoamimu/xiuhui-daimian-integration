@@ -102,7 +102,7 @@ BREWFILE="${SCRIPT_DIR}/Brewfile"
 _log "Updating Homebrew formulae index..."
 brew update
 
-_log "Installing pinned poppler 25.05.0 (newer poppler breaks pdfinput)..."
+_log "Installing pinned poppler 25.05.0 + gpgme 1.24.3 (newer versions break pdfinput)..."
 # Newer Homebrew rejects direct path installs ("formulae must be in a tap"),
 # so vendored formulas go into a minimal local tap first.
 PIN_TAP_DIR="$(brew --repository)/Library/Taps/xiuhui/homebrew-pinned"
@@ -113,6 +113,9 @@ if [ ! -e "${PIN_TAP_DIR}/.git" ]; then
     git -C "${PIN_TAP_DIR}" add -A
     git -C "${PIN_TAP_DIR}" -c user.email=ci@local -c user.name=ci commit -qm init 2>/dev/null || true
 fi
+# gpgme MUST be pinned before poppler: poppler 25.05 links gpgme 1.x sonames
+# (libgpgme.11 / libgpgmepp.6) but core gpgme is now 2.x with new sonames.
+brew install xiuhui/pinned/gpgme || _warn "pinned gpgme install failed"
 brew install xiuhui/pinned/poppler \
     || _warn "pinned poppler install failed; falling back to core poppler"
 
