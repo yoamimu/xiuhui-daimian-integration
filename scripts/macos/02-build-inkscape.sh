@@ -50,6 +50,22 @@ ICU_PREFIX="$(brew --prefix icu4c 2>/dev/null || brew --prefix icu4c@77 2>/dev/n
 # Intel runners ("cstddef tried including stddef.h").
 export PKG_CONFIG_PATH="$(brew --prefix)/opt/libxml2/lib/pkgconfig:$(brew --prefix libffi)/lib/pkgconfig:$(brew --prefix)/Library/Homebrew/os/mac/pkgconfig/26:${ICU_PREFIX:+${ICU_PREFIX}/lib/pkgconfig:}$(brew --prefix gettext)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 export SDKROOT="$(xcrun --show-sdk-path)"
+
+# Homebrew's system-library pkgconfig shims inject CommandLineTools SDK
+# include paths (-isystem /Library/Developer/CommandLineTools/SDKs/...).
+# Mixed with Xcode's libc++ those break header resolution ("cstddef tried
+# including stddef.h"). Wrap pkg-config so every CLT SDK path it emits is
+# rewritten to the ACTIVE Xcode SDK, which carries the same headers and
+# cooperates with libc++ ordering.
+WRAP_DIR="${BUILD_DIR}/toolwrap"
+mkdir -p "${WRAP_DIR}"
+_REAL_PKGCONFIG="$(command -v pkg-config)"
+cat > "${WRAP_DIR}/pkg-config" <<EOF
+#!/bin/bash
+exec python3 "${SCRIPT_DIR}/pkgconfig-clt-filter.py" "${_REAL_PKGCONFIG}" "\$@"
+EOF
+chmod +x "${WRAP_DIR}/pkg-config"
+export PATH="${WRAP_DIR}:${PATH}"
 export PATH="$(brew --prefix gettext)/bin:${PATH}"
 
 # Deployment target: match the build host major version. macOS 26+ users
