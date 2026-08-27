@@ -4,8 +4,8 @@
 
 ## 下载选择
 
-- Apple 芯片（M1/M2/M3/M4 等）：`绣绘-v0.1.0-macOS-Apple芯片-arm64.dmg`
-- Intel 芯片：`绣绘-v0.1.0-macOS-Intel-x86_64.dmg`
+- Apple 芯片（M1/M2/M3/M4 等）：`xiuhui-v0.1.0-macOS-Apple-Silicon-arm64.dmg`
+- Intel 芯片：`xiuhui-v0.1.0-macOS-Intel-x86_64.dmg`
 
 两个版本均为原生架构应用，不需要安装 Homebrew 或额外的 Ink/Stitch 依赖。
 
@@ -30,8 +30,8 @@
 ## SHA-256
 
 ```text
-8bea9f85014a81953ec1a6498f538ad6a4f80c4ae9e6daeedf79cbf5969cc408  绣绘-v0.1.0-macOS-Apple芯片-arm64.dmg
-99576fec5a24de5ae23eadcf6e7eda9924c1ea6f522384e6d3f931a46eadb4d0  绣绘-v0.1.0-macOS-Intel-x86_64.dmg
+8bea9f85014a81953ec1a6498f538ad6a4f80c4ae9e6daeedf79cbf5969cc408  xiuhui-v0.1.0-macOS-Apple-Silicon-arm64.dmg
+99576fec5a24de5ae23eadcf6e7eda9924c1ea6f522384e6d3f931a46eadb4d0  xiuhui-v0.1.0-macOS-Intel-x86_64.dmg
 ```
 
 ## 许可与来源
