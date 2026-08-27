@@ -1,5 +1,9 @@
 # Third-Party Licenses
 
+The generated inventory for the published macOS v0.1.0 dual-architecture release is available at:
+
+- [`release/THIRD_PARTY_LICENSES_v0.1.0.md`](release/THIRD_PARTY_LICENSES_v0.1.0.md)
+
 The Windows preview build bundles runtime components and Python packages in addition to Inkscape and Ink/Stitch.
 
 Before a public binary release, generate a complete third-party license inventory from the installed package directory:
@@ -11,5 +15,4 @@ Before a public binary release, generate a complete third-party license inventor
 - MSYS2/UCRT64 runtime libraries included in the final installer or zip package.
 - Fonts, icons, palettes, templates and example files.
 
-Do not publish the binary until this file is replaced or accompanied by a generated release-specific license inventory.
-
+Do not publish a Windows binary until this file is replaced or accompanied by a generated release-specific license inventory.

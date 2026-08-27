@@ -319,7 +319,8 @@ if [[ -d "${EXT_APP}" ]]; then
 fi
 codesign "${SIGN_ARGS[@]}" "${APP}"
 
-codesign --verify --deep --strict --verbose=2 "${APP}" 2>&1 | tail -1 || true
+codesign --verify --deep --strict --verbose=2 "${APP}" \
+    || _die "Code-signature verification failed before cache generation."
 # ---------- 7. gdk-pixbuf loaders.cache (relative, relocatable) ----------
 # Run AFTER signing: gdk-pixbuf-query-loaders dlopens each loader, and on
 # modern macOS an unsigned loader gets the query tool SIGKILLed. With valid
@@ -372,8 +373,10 @@ open(out, 'w').write('\n'.join(lines) + '\n')
 PYEOF
 fi
 
-# loaders.cache changed after the bundle seal was written → re-seal the top app.
-codesign "${SIGN_ARGS[@]}" "${APP}" 2>/dev/null || true
+# loaders.cache changed after the bundle seal was written -> re-seal the top app.
+codesign "${SIGN_ARGS[@]}" "${APP}"
+codesign --verify --deep --strict --verbose=2 "${APP}" \
+    || _die "Final code-signature verification failed; refusing to package the app."
 
 _log "Signed bundle: ${APP}"
 _log "Self-contained bundling done. Next: bash 05-make-dmg.sh"

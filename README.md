@@ -10,7 +10,14 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 > 非官方声明：绣绘呆棉整合版是基于 Inkscape 与 Ink/Stitch 的非官方修改版。Inkscape、Ink/Stitch 及其相关标识归各自项目和权利人所有。本项目不得暗示获得 Inkscape Project 或 Ink/Stitch 维护者的官方认可、认证或背书。
 
-当前仓库仅用于源码整合与发布准备，尚未发布正式二进制安装包。未来发布 Windows 安装包或其他平台包时，必须同步提供对应源码包或公开源码 tag。
+当前已发布 macOS `v0.1.0` 双架构测试版，分别支持 Apple Silicon (`arm64`) 与 Intel (`x86_64`) Mac。安装包、校验值和首次启动说明见 [GitHub Releases](https://github.com/yoamimu/xiuhui-daimian-integration/releases)；Windows 或其他平台版本仍在后续计划中。
+
+## macOS 版本
+
+- Apple 芯片版：原生 `arm64`，已在 macOS 14 或更高版本测试。
+- Intel 芯片版：原生 `x86_64`，已在 macOS 15 测试。
+- 两个安装包均为自包含版本，无需安装 Homebrew 或 Ink/Stitch 依赖。
+- `v0.1.0` 采用有效的 ad-hoc 签名，尚未经过 Apple 公证；首次启动需右键应用并选择“打开”。
 
 ## 当前基线
 
