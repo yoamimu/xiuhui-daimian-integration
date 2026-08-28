@@ -212,18 +212,26 @@ install_icon_alias "media-playback-start" "play"
 ENABLE_ACTIVATION="${ENABLE_ACTIVATION:-1}"
 case "${ENABLE_ACTIVATION}" in
     1|true|yes)
+        ACTIVATION_MODE="${ACTIVATION_MODE:-offline}"
         ACTIVATION_CLIENT_DIR="${INTEG_REPO_ROOT}/activation-client/macos"
         INKSCAPE_EXECUTABLE="${FINAL_APP}/Contents/MacOS/inkscape"
         INKSCAPE_CORE="${FINAL_APP}/Contents/MacOS/inkscape-core"
         [[ -x "${INKSCAPE_EXECUTABLE}" ]] \
             || _die "Inkscape executable not found at ${INKSCAPE_EXECUTABLE}"
-        [[ -n "${ACTIVATION_SERVER_URL:-}" ]] \
-            || _die "ACTIVATION_SERVER_URL is required for protected builds. Set ENABLE_ACTIVATION=0 only for local development."
+        case "${ACTIVATION_MODE}" in
+            offline) ;;
+            online)
+                [[ -n "${ACTIVATION_SERVER_URL:-}" ]] \
+                    || _die "ACTIVATION_SERVER_URL is required when ACTIVATION_MODE=online."
+                ;;
+            *) _die "ACTIVATION_MODE must be offline or online (got ${ACTIVATION_MODE})" ;;
+        esac
 
-        _log "Installing native ${MAC_ARCH} activation launcher ..."
+        _log "Installing native ${MAC_ARCH} ${ACTIVATION_MODE} activation launcher ..."
         mv "${INKSCAPE_EXECUTABLE}" "${INKSCAPE_CORE}"
         MAC_ARCH="${MAC_ARCH}" \
-        ACTIVATION_SERVER_URL="${ACTIVATION_SERVER_URL}" \
+        ACTIVATION_MODE="${ACTIVATION_MODE}" \
+        ACTIVATION_SERVER_URL="${ACTIVATION_SERVER_URL:-}" \
         LICENSE_PUBLIC_KEY_FILE="${LICENSE_PUBLIC_KEY_FILE:-${ACTIVATION_CLIENT_DIR}/license-public-key.b64}" \
         ALLOW_INSECURE_LOCAL_ACTIVATION="${ALLOW_INSECURE_LOCAL_ACTIVATION:-0}" \
             bash "${ACTIVATION_CLIENT_DIR}/build-launcher.sh" "${INKSCAPE_EXECUTABLE}"

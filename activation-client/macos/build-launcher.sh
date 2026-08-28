@@ -9,6 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE="${SCRIPT_DIR}/XHActivationLauncher.m"
 MAC_ARCH="${MAC_ARCH:-arm64}"
 OUTPUT="${1:-}"
+ACTIVATION_MODE="${ACTIVATION_MODE:-offline}"
 ACTIVATION_SERVER_URL="${ACTIVATION_SERVER_URL:-}"
 PUBLIC_KEY_FILE="${LICENSE_PUBLIC_KEY_FILE:-${SCRIPT_DIR}/license-public-key.b64}"
 
@@ -17,11 +18,17 @@ case "${MAC_ARCH}" in
     arm64|x86_64) ;;
     *) _die "MAC_ARCH must be arm64 or x86_64" ;;
 esac
+case "${ACTIVATION_MODE}" in
+    offline|online) ;;
+    *) _die "ACTIVATION_MODE must be offline or online" ;;
+esac
 [[ -f "${SOURCE}" ]] || _die "missing launcher source: ${SOURCE}"
-[[ -n "${ACTIVATION_SERVER_URL}" ]] || _die "ACTIVATION_SERVER_URL is required"
-[[ "${ACTIVATION_SERVER_URL}" == https://* ]] \
-    || [[ "${ALLOW_INSECURE_LOCAL_ACTIVATION:-0}" == "1" && "${ACTIVATION_SERVER_URL}" == http://127.0.0.1:* ]] \
-    || _die "ACTIVATION_SERVER_URL must use HTTPS"
+if [[ "${ACTIVATION_MODE}" == "online" ]]; then
+    [[ -n "${ACTIVATION_SERVER_URL}" ]] || _die "ACTIVATION_SERVER_URL is required in online mode"
+    [[ "${ACTIVATION_SERVER_URL}" == https://* ]] \
+        || [[ "${ALLOW_INSECURE_LOCAL_ACTIVATION:-0}" == "1" && "${ACTIVATION_SERVER_URL}" == http://127.0.0.1:* ]] \
+        || _die "ACTIVATION_SERVER_URL must use HTTPS"
+fi
 [[ -f "${PUBLIC_KEY_FILE}" ]] || _die "missing license public key: ${PUBLIC_KEY_FILE}"
 
 PUBLIC_KEY_B64="$(tr -d '\r\n[:space:]' < "${PUBLIC_KEY_FILE}")"
@@ -34,17 +41,22 @@ fi
 
 mkdir -p "$(dirname "${OUTPUT}")"
 DEFINES=(
-    "-DXH_ACTIVATION_SERVER_URL=@\"${ACTIVATION_SERVER_URL}\""
     "-DXH_LICENSE_PUBLIC_KEY_B64=@\"${PUBLIC_KEY_B64}\""
 )
-if [[ "${ALLOW_INSECURE_LOCAL_ACTIVATION:-0}" == "1" ]]; then
-    DEFINES+=("-DXH_ALLOW_INSECURE_HTTP=1")
+if [[ "${ACTIVATION_MODE}" == "offline" ]]; then
+    DEFINES+=("-DXH_OFFLINE_ACTIVATION=1")
+else
+    DEFINES+=("-DXH_OFFLINE_ACTIVATION=0")
+    DEFINES+=("-DXH_ACTIVATION_SERVER_URL=@\"${ACTIVATION_SERVER_URL}\"")
+    if [[ "${ALLOW_INSECURE_LOCAL_ACTIVATION:-0}" == "1" ]]; then
+        DEFINES+=("-DXH_ALLOW_INSECURE_HTTP=1")
+    fi
 fi
 if [[ "${ACTIVATION_CLIENT_TEST_BUILD:-0}" == "1" ]]; then
     DEFINES+=("-DXH_TEST_BUILD=1")
 fi
 
-_log "building ${MAC_ARCH} launcher for ${ACTIVATION_SERVER_URL}"
+_log "building ${MAC_ARCH} launcher in ${ACTIVATION_MODE} activation mode"
 xcrun --sdk macosx clang \
     -arch "${MAC_ARCH}" \
     -mmacosx-version-min="${DEPLOYMENT_TARGET}" \

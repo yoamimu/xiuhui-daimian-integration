@@ -8,8 +8,12 @@
 #include <sys/sysctl.h>
 #include <unistd.h>
 
-#ifndef XH_ACTIVATION_SERVER_URL
-#error "XH_ACTIVATION_SERVER_URL must be provided by the build script"
+#ifndef XH_OFFLINE_ACTIVATION
+#define XH_OFFLINE_ACTIVATION 0
+#endif
+
+#if !XH_OFFLINE_ACTIVATION && !defined(XH_ACTIVATION_SERVER_URL)
+#error "XH_ACTIVATION_SERVER_URL must be provided for online activation"
 #endif
 
 #ifndef XH_LICENSE_PUBLIC_KEY_B64
@@ -22,8 +26,9 @@ static NSString *const XHKeychainService = @"com.yoamimu.xiuhui.activation.tests
 #else
 static NSString *const XHKeychainService = @"com.yoamimu.xiuhui.activation";
 #endif
-static NSString *const XHServerURL = XH_ACTIVATION_SERVER_URL;
 static NSString *const XHPublicKeyBase64 = XH_LICENSE_PUBLIC_KEY_B64;
+#if !XH_OFFLINE_ACTIVATION
+static NSString *const XHServerURL = XH_ACTIVATION_SERVER_URL;
 static const NSTimeInterval XHNetworkTimeout = 7.0;
 
 typedef NS_ENUM(NSInteger, XHRequestKind) {
@@ -41,6 +46,7 @@ typedef NS_ENUM(NSInteger, XHRequestKind) {
 
 @implementation XHServerResult
 @end
+#endif
 
 static NSData *XHKeychainData(NSString *account) {
     NSDictionary *query = @{
@@ -130,6 +136,7 @@ static NSString *XHDeviceID(void) {
     return XHSHA256([NSString stringWithFormat:@"xiuhui-device-v1|%@|%@", XHAppID, hardwareUUID]);
 }
 
+#if !XH_OFFLINE_ACTIVATION
 static NSString *XHMachineModel(void) {
     size_t size = 0;
     if (sysctlbyname("hw.model", NULL, &size, NULL, 0) != 0 || size == 0) return @"Mac";
@@ -171,6 +178,16 @@ static NSString *XHNormalizeCode(NSString *rawCode) {
     }
     return upper;
 }
+#endif
+
+#if XH_OFFLINE_ACTIVATION
+static NSString *XHBase64URLEncode(NSData *data) {
+    NSString *value = [data base64EncodedStringWithOptions:0];
+    value = [value stringByReplacingOccurrencesOfString:@"+" withString:@"-"];
+    value = [value stringByReplacingOccurrencesOfString:@"/" withString:@"_"];
+    return [value stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"="]];
+}
+#endif
 
 static NSData *XHBase64URLDecode(NSString *value) {
     NSString *base64 = [[value stringByReplacingOccurrencesOfString:@"-" withString:@"+"]
@@ -202,7 +219,12 @@ static SecKeyRef XHLicensePublicKey(void) {
     return publicKey;
 }
 
-static NSDictionary *XHVerifiedPayload(NSString *token, NSString *deviceID, BOOL requireLease) {
+static NSDictionary *XHVerifiedPayload(
+    NSString *token,
+    NSString *deviceID,
+    BOOL requireLease,
+    NSInteger requiredVersion
+) {
     NSArray<NSString *> *parts = [token componentsSeparatedByString:@"."];
     if (parts.count != 2) return nil;
     NSData *payloadData = XHBase64URLDecode(parts[0]);
@@ -225,13 +247,15 @@ static NSDictionary *XHVerifiedPayload(NSString *token, NSString *deviceID, BOOL
     if (![payload isKindOfClass:NSDictionary.class]) return nil;
     if (![payload[@"app_id"] isEqual:XHAppID]) return nil;
     if (![payload[@"device_id"] isEqual:deviceID]) return nil;
-    if ([payload[@"version"] integerValue] != 1) return nil;
+    if ([payload[@"version"] integerValue] != requiredVersion) return nil;
 
     NSTimeInterval now = NSDate.date.timeIntervalSince1970;
     NSTimeInterval issuedAt = [payload[@"issued_at"] doubleValue];
+    NSTimeInterval startsAt = [payload[@"starts_at"] doubleValue];
     NSTimeInterval expiresAt = [payload[@"expires_at"] doubleValue];
     NSTimeInterval leaseUntil = [payload[@"lease_until"] doubleValue];
     if (issuedAt <= 0 || issuedAt > now + 300 || expiresAt <= now) return nil;
+    if (startsAt > 0 && startsAt > now + 300) return nil;
     if (requireLease && leaseUntil <= now) return nil;
 
 #if !defined(XH_TEST_BUILD) || !XH_TEST_BUILD
@@ -244,6 +268,7 @@ static NSDictionary *XHVerifiedPayload(NSString *token, NSString *deviceID, BOOL
     return payload;
 }
 
+#if !XH_OFFLINE_ACTIVATION
 static NSURL *XHEndpointURL(NSString *endpoint) {
     NSString *base = [XHServerURL stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
     while ([base hasSuffix:@"/"]) base = [base substringToIndex:base.length - 1];
@@ -319,7 +344,7 @@ static XHServerResult *XHRequestServer(NSString *endpoint, NSString *activationC
     }
     if (httpResponse.statusCode == 200 && [json[@"ok"] boolValue]) {
         NSString *token = json[@"license_token"];
-        if (![token isKindOfClass:NSString.class] || !XHVerifiedPayload(token, deviceID, YES)) {
+        if (![token isKindOfClass:NSString.class] || !XHVerifiedPayload(token, deviceID, YES, 1)) {
             result.kind = XHRequestKindServerRejection;
             result.message = @"授权服务器返回的数据无法验证，请联系销售方。";
             return result;
@@ -343,6 +368,7 @@ static XHServerResult *XHRequestServer(NSString *endpoint, NSString *activationC
         : @"授权验证失败，请检查激活码后重试。";
     return result;
 }
+#endif
 
 static void XHShowMessage(NSString *title, NSString *message) {
     NSAlert *alert = [NSAlert new];
@@ -353,6 +379,7 @@ static void XHShowMessage(NSString *title, NSString *message) {
     [alert runModal];
 }
 
+#if !XH_OFFLINE_ACTIVATION
 static NSString *XHPromptForActivationCode(NSString *existingCode, NSString *message) {
     NSAlert *alert = [NSAlert new];
     alert.messageText = @"激活绣绘";
@@ -393,7 +420,7 @@ static BOOL XHObtainValidLicense(NSString *deviceID) {
         }
         if (validation.kind == XHRequestKindNetworkFailure
             && storedToken.length
-            && XHVerifiedPayload(storedToken, deviceID, YES)) {
+            && XHVerifiedPayload(storedToken, deviceID, YES, 1)) {
             return YES;
         }
         if (validation.kind == XHRequestKindServerRejection) {
@@ -419,6 +446,128 @@ static BOOL XHObtainValidLicense(NSString *deviceID) {
         promptMessage = activation.message;
     }
 }
+#else
+static NSString *XHDeviceRequestCode(NSString *deviceID) {
+    if (deviceID.length != 64) return nil;
+    NSMutableData *data = [NSMutableData dataWithCapacity:32];
+    for (NSUInteger index = 0; index < deviceID.length; index += 2) {
+        NSString *pair = [deviceID substringWithRange:NSMakeRange(index, 2)];
+        unsigned int byte = 0;
+        NSScanner *scanner = [NSScanner scannerWithString:pair];
+        if (![scanner scanHexInt:&byte]) return nil;
+        uint8_t value = (uint8_t)byte;
+        [data appendBytes:&value length:1];
+    }
+    return [@"XHD-" stringByAppendingString:XHBase64URLEncode(data)];
+}
+
+static NSString *XHCompactLicenseToken(NSString *value) {
+    NSArray<NSString *> *parts = [value componentsSeparatedByCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    return [parts componentsJoinedByString:@""];
+}
+
+static NSString *XHPromptForOfflineLicense(NSString *deviceCode, NSString *message) {
+    NSString *enteredToken = @"";
+    NSString *promptMessage = message ?: @"";
+
+    while (YES) {
+        NSAlert *alert = [NSAlert new];
+        alert.messageText = @"激活绣绘";
+        alert.informativeText = promptMessage.length
+            ? promptMessage
+            : @"请把设备码发给销售方，再粘贴收到的离线授权码。授权只适用于这台 Mac。";
+        [alert addButtonWithTitle:@"激活并打开"];
+        [alert addButtonWithTitle:@"复制设备码"];
+        [alert addButtonWithTitle:@"退出"];
+
+        NSView *accessory = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 500, 150)];
+        NSTextField *deviceLabel = [NSTextField labelWithString:@"本机设备码"];
+        deviceLabel.frame = NSMakeRect(0, 126, 500, 18);
+
+        NSTextField *deviceField = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 96, 500, 26)];
+        deviceField.stringValue = deviceCode ?: @"";
+        deviceField.editable = NO;
+        deviceField.selectable = YES;
+        deviceField.font = [NSFont monospacedSystemFontOfSize:12 weight:NSFontWeightRegular];
+        deviceField.toolTip = @"将此设备码发给销售方";
+
+        NSTextField *licenseLabel = [NSTextField labelWithString:@"离线授权码"];
+        licenseLabel.frame = NSMakeRect(0, 68, 500, 18);
+
+        NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, 500, 64)];
+        scrollView.hasVerticalScroller = YES;
+        scrollView.borderType = NSBezelBorder;
+        NSTextView *input = [[NSTextView alloc] initWithFrame:scrollView.bounds];
+        input.string = enteredToken;
+        input.font = [NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightRegular];
+        input.textContainerInset = NSMakeSize(6, 6);
+        input.automaticQuoteSubstitutionEnabled = NO;
+        input.automaticDashSubstitutionEnabled = NO;
+        input.automaticTextReplacementEnabled = NO;
+        scrollView.documentView = input;
+
+        [accessory addSubview:deviceLabel];
+        [accessory addSubview:deviceField];
+        [accessory addSubview:licenseLabel];
+        [accessory addSubview:scrollView];
+        alert.accessoryView = accessory;
+
+        [NSApp activateIgnoringOtherApps:YES];
+        NSModalResponse response = [alert runModal];
+        enteredToken = input.string ?: @"";
+        if (response == NSAlertFirstButtonReturn) {
+            return XHCompactLicenseToken(enteredToken);
+        }
+        if (response == NSAlertSecondButtonReturn) {
+            NSPasteboard *pasteboard = NSPasteboard.generalPasteboard;
+            [pasteboard clearContents];
+            [pasteboard setString:deviceCode forType:NSPasteboardTypeString];
+            promptMessage = @"设备码已复制。发给销售方取得授权码后，粘贴到下方。";
+            continue;
+        }
+        return nil;
+    }
+}
+
+static BOOL XHObtainValidOfflineLicense(NSString *deviceID) {
+    NSString *storedToken = XHKeychainString(@"license-token");
+    NSDictionary *storedPayload = storedToken.length
+        ? XHVerifiedPayload(storedToken, deviceID, YES, 2)
+        : nil;
+    if (storedPayload && [storedPayload[@"offline"] boolValue]) return YES;
+
+    if (storedToken.length) XHDeleteKeychainItem(@"license-token");
+    NSString *deviceCode = XHDeviceRequestCode(deviceID);
+    if (!deviceCode.length) return NO;
+    NSString *message = storedToken.length
+        ? @"原授权已过期、尚未生效或不属于这台 Mac，请联系销售方重新获取。"
+        : @"";
+
+    while (YES) {
+        NSString *candidate = XHPromptForOfflineLicense(deviceCode, message);
+        if (!candidate) return NO;
+        if (candidate.length < 80) {
+            message = @"授权码不完整，请重新复制销售方发来的全部内容。";
+            continue;
+        }
+        NSDictionary *payload = XHVerifiedPayload(candidate, deviceID, YES, 2);
+        if (!payload || ![payload[@"offline"] boolValue]) {
+            message = @"授权码无效、已过期或不属于这台 Mac，请检查后重试。";
+            continue;
+        }
+        if (!XHSetKeychainString(@"license-token", candidate)) {
+            message = @"无法将授权保存到系统钥匙串，请检查钥匙串访问权限。";
+            continue;
+        }
+        XHDeleteKeychainItem(@"activation-code");
+        NSString *expiry = [payload[@"expires_on"] isKindOfClass:NSString.class]
+            ? payload[@"expires_on"]
+            : @"一年后";
+        XHShowMessage(@"绣绘已激活", [NSString stringWithFormat:@"授权仅限这台 Mac 使用，有效期至 %@。", expiry]);
+        return YES;
+    }
+}
+#endif
 
 static int XHExecCore(int argc, const char *argv[]) {
     NSString *corePath = [NSBundle.mainBundle.bundlePath
@@ -442,6 +591,22 @@ static int XHExecCore(int argc, const char *argv[]) {
 
 #if defined(XH_TEST_BUILD) && XH_TEST_BUILD
 static int XHRunTestCommand(int argc, const char *argv[]) {
+#if XH_OFFLINE_ACTIVATION
+    if (argc != 3 || strcmp(argv[1], "--xh-test-offline-token") != 0) return -1;
+    NSString *token = [NSString stringWithUTF8String:argv[2]];
+    NSString *deviceID = NSProcessInfo.processInfo.environment[@"XH_TEST_DEVICE_ID"];
+    if (!deviceID.length) {
+        fprintf(stderr, "XH_TEST_DEVICE_ID is required\n");
+        return 90;
+    }
+    NSDictionary *payload = XHVerifiedPayload(token, deviceID, YES, 2);
+    if (!payload || ![payload[@"offline"] boolValue]) {
+        fprintf(stderr, "offline license rejected\n");
+        return 11;
+    }
+    fprintf(stdout, "offline license valid through %s\n", [payload[@"expires_on"] UTF8String] ?: "unknown");
+    return 0;
+#else
     if (argc != 4 || strcmp(argv[1], "--xh-test-request") != 0) return -1;
     NSString *endpoint = [NSString stringWithUTF8String:argv[2]];
     NSString *code = [NSString stringWithUTF8String:argv[3]];
@@ -453,6 +618,7 @@ static int XHRunTestCommand(int argc, const char *argv[]) {
     XHServerResult *result = XHRequestServer(endpoint, code, deviceID);
     fprintf(stdout, "%ld\t%s\n", (long)result.kind, result.message.UTF8String ?: "");
     return result.kind == XHRequestKindSuccess ? 0 : 10 + (int)result.kind;
+#endif
 }
 #endif
 
@@ -470,7 +636,7 @@ int main(int argc, const char *argv[]) {
             XHShowMessage(@"绣绘无法启动", @"无法生成这台 Mac 的设备密钥，请联系销售方。" );
             return 73;
         }
-#if defined(XH_TEST_BUILD) && XH_TEST_BUILD
+#if defined(XH_TEST_BUILD) && XH_TEST_BUILD && !XH_OFFLINE_ACTIVATION
         NSString *automaticTestCode = NSProcessInfo.processInfo.environment[@"XH_TEST_ACTIVATION_CODE"];
         if (automaticTestCode.length) {
             XHServerResult *testActivation = XHRequestServer(@"activate", automaticTestCode, deviceID);
@@ -481,7 +647,11 @@ int main(int argc, const char *argv[]) {
             return XHExecCore(argc, argv);
         }
 #endif
+#if XH_OFFLINE_ACTIVATION
+        if (!XHObtainValidOfflineLicense(deviceID)) return 0;
+#else
         if (!XHObtainValidLicense(deviceID)) return 0;
+#endif
         [NSApp hide:nil];
         return XHExecCore(argc, argv);
     }

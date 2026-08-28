@@ -10,11 +10,17 @@ WORK="$(mktemp -d -t xiuhui-activation-e2e)"
 SERVER_PID=""
 
 cleanup() {
+    local status=$?
     if [[ -n "${SERVER_PID}" ]]; then
         kill "${SERVER_PID}" 2>/dev/null || true
         wait "${SERVER_PID}" 2>/dev/null || true
     fi
+    if [[ ${status} -ne 0 && -f "${WORK}/server.log" ]]; then
+        printf '\nactivation server log:\n' >&2
+        cat "${WORK}/server.log" >&2
+    fi
     rm -rf "${WORK}"
+    return "${status}"
 }
 trap cleanup EXIT
 
@@ -63,6 +69,7 @@ with app.app_context():
 build_client() {
     local arch="$1"
     MAC_ARCH="${arch}" \
+    ACTIVATION_MODE=online \
     ACTIVATION_SERVER_URL="http://127.0.0.1:${PORT}" \
     ALLOW_INSECURE_LOCAL_ACTIVATION=1 \
     ACTIVATION_CLIENT_TEST_BUILD=1 \
