@@ -18,6 +18,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
+if [[ "${PYTHON_BIN}" != */* ]]; then
+    PYTHON_BIN="$(command -v "${PYTHON_BIN}" || true)"
+fi
+if [[ "${GUNICORN_BIN}" != */* ]]; then
+    GUNICORN_BIN="$(command -v "${GUNICORN_BIN}" || true)"
+fi
 [[ -x "${PYTHON_BIN}" ]] || { echo "missing Python: ${PYTHON_BIN}" >&2; exit 1; }
 [[ -x "${GUNICORN_BIN}" ]] || { echo "missing Gunicorn: ${GUNICORN_BIN}" >&2; exit 1; }
 
