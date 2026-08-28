@@ -32,6 +32,7 @@ jobs:
     env:
       HOME: /Users/runner            # 供 working-directory 的 ${{ env.HOME }} 使用
       MAC_ARCH: ${{ matrix.arch }}
+      VERSION: ${{ inputs.version || '' }}
       # 未配置 Secrets 时走 ad-hoc 签名 + 跳过公证；配置后自动启用。
       SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY || '' }}
       # 公证：优先 App Store Connect API Key（MACOS_API_KEY*），
@@ -43,6 +44,7 @@ jobs:
       # Production packages must always include activation.  The bundle step
       # fails closed when the HTTPS endpoint secret is absent.
       ENABLE_ACTIVATION: '1'
+      ACTIVATION_MODE: offline
       ACTIVATION_SERVER_URL: ${{ secrets.ACTIVATION_SERVER_URL }}
 
     steps:
