@@ -53,7 +53,9 @@ brew "potrace"
 # --- Python runtime + Inkscape extension deps ---
 brew "python@3.13"
 brew "py3cairo"
-brew "pygobject3"
+# pygobject3 is only used by Ink/Stitch's optional DBus selection helper.
+# It has no x86_64 bottle on current Homebrew and is not needed by the
+# self-contained macOS app, so do not make Intel release builds depend on it.
 brew "scour"
 
 # --- Ink/Stitch macOS build deps (matches inkstitch .github/workflows/build.yml macarm64 job) ---
