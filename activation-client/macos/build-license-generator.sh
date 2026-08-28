@@ -48,6 +48,17 @@ if [[ -f "${ICON}" ]]; then
     /usr/libexec/PlistBuddy -c 'Add :CFBundleIconFile string 绣绘.icns' "${OUTPUT}/Contents/Info.plist"
 fi
 
-codesign --force --sign - --timestamp=none "${OUTPUT}"
+SIGNING_IDENTITY="${SIGNING_IDENTITY:-}"
+SIGNING_KEYCHAIN="${SIGNING_KEYCHAIN:-}"
+if [[ -n "${SIGNING_IDENTITY}" ]]; then
+    SIGN_ARGS=(--force --options runtime --timestamp --sign "${SIGNING_IDENTITY}")
+    [[ -n "${SIGNING_KEYCHAIN}" ]] && SIGN_ARGS+=(--keychain "${SIGNING_KEYCHAIN}")
+    _log "Developer ID signing with ${SIGNING_IDENTITY}"
+else
+    SIGN_ARGS=(--force --sign - --timestamp=none)
+    _log "ad-hoc signing (internal development use)"
+fi
+
+codesign "${SIGN_ARGS[@]}" "${OUTPUT}"
 codesign --verify --deep --strict "${OUTPUT}"
 _log "ready: ${OUTPUT} ($(lipo -archs "${OUTPUT}/Contents/MacOS/绣绘授权生成器"))"
