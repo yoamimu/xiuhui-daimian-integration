@@ -14,6 +14,7 @@
   - 默认 **ad-hoc 签名**（无需开发者账号），dmg 首次打开要走"右键 → 打开"
   - 可选 **Developer ID 签名 + 公证**（需付费开发者账号，见 `docs/MACOS_SIGNING_SETUP.md`）
 - **不依赖** `inkscape-ci-macos` (jhb)；使用 Homebrew 上的 GTK4 栈
+- 正式构建默认安装原生授权启动器；必须设置生产 HTTPS 地址 `ACTIVATION_SERVER_URL`
 
 ## 架构说明
 
@@ -64,8 +65,8 @@ bash 02-build-inkscape.sh
 # 用 PyInstaller 打 Ink/Stitch，产出 src/inkstitch/dist/inkstitch.app
 bash 03-build-inkstitch.sh
 
-# 合并、改 Info.plist 品牌、签名，产出 build/Inkscape-绣绘呆棉版-arm64.app
-bash 04-bundle.sh
+# 合并、改 Info.plist 品牌、安装授权启动器并签名
+ACTIVATION_SERVER_URL=https://你的授权域名 bash 04-bundle.sh
 
 # 套 dmg 壳（带 /Applications 拖拽和首次打开说明），产出 release/*.dmg
 bash 05-make-dmg.sh
@@ -81,7 +82,7 @@ MAC_ARCH=x86_64 bash 00-bootstrap.sh
 MAC_ARCH=x86_64 bash 01-apply-patches.sh
 MAC_ARCH=x86_64 arch -x86_64 bash 02-build-inkscape.sh
 MAC_ARCH=x86_64 arch -x86_64 bash 03-build-inkstitch.sh
-MAC_ARCH=x86_64 bash 04-bundle.sh
+MAC_ARCH=x86_64 ACTIVATION_SERVER_URL=https://你的授权域名 bash 04-bundle.sh
 MAC_ARCH=x86_64 bash 05-make-dmg.sh
 ```
 
@@ -108,6 +109,20 @@ NOTARIZE=1 bash 05-make-dmg.sh
 ```
 
 公证凭据通过钥匙串 profile `xiuhui-notary-profile` 或环境变量 `APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` / `TEAM_ID` 提供。完整配置步骤见 `docs/MACOS_SIGNING_SETUP.md`。
+
+## 授权启动器
+
+正式包默认启用一机一码授权。`04-bundle.sh` 会把原来的 `Contents/MacOS/inkscape` 移为 `inkscape-core` 并随应用重新签名，再把对应架构的原生授权启动器写入原入口。授权成功后启动器使用 `execv` 进入原主程序，不修改 Inkscape 或 Ink/Stitch 的功能代码。
+
+生产构建必须设置：
+
+```bash
+ENABLE_ACTIVATION=1 \
+ACTIVATION_SERVER_URL=https://license.example.com \
+bash 04-bundle.sh
+```
+
+只在开发机调试不需要授权的本地包时，才允许显式设置 `ENABLE_ACTIVATION=0`。GitHub Actions 固定启用授权；仓库 Secret `ACTIVATION_SERVER_URL` 缺失时构建会终止，不会产生未保护的发布包。
 
 ## 估时
 

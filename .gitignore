@@ -12,9 +12,15 @@
 /.tmp_system/
 /.cache/
 /.pip-cache/
+/.venv/
 /.pycache/
 __pycache__/
 *.pyc
+
+# Activation server runtime data and secrets
+/activation-server/data/
+/activation-server/.env
+/activation-server/*.pem
 
 # Local machine metadata
 /.local/
@@ -30,4 +36,3 @@ __pycache__/
 # macOS resource-fork / metadata files that leak through SMB / USB copies
 ._*
 .DS_Store
-

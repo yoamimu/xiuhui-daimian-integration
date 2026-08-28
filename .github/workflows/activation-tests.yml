@@ -1,0 +1,50 @@
+name: Activation Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'activation-client/**'
+      - 'activation-server/**'
+      - 'activation_server/**'
+      - 'scripts/generate-activation-key.py'
+      - 'tests/**'
+      - '.github/workflows/activation-tests.yml'
+  pull_request:
+    paths:
+      - 'activation-client/**'
+      - 'activation-server/**'
+      - 'activation_server/**'
+      - 'scripts/generate-activation-key.py'
+      - 'tests/**'
+      - '.github/workflows/activation-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  server-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: activation-server/requirements.txt
+      - run: pip install -r activation-server/requirements.txt
+      - run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+  macos-client-e2e:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: activation-server/requirements.txt
+      - run: pip install -r activation-server/requirements.txt
+      - name: Run arm64 and x86_64 activation flow
+        env:
+          PYTHON_BIN: python
+          GUNICORN_BIN: gunicorn
+        run: bash tests/run_activation_e2e.sh

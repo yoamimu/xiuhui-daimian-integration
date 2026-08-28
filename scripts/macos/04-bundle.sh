@@ -205,6 +205,37 @@ install_icon_alias "document-edit" "edit"
 install_icon_alias "view-list" "layout-list"
 install_icon_alias "media-playback-start" "play"
 
+# ---------- 3d. install activation launcher ----------
+# Keep licensing outside the Inkscape/Ink-Stitch code paths.  The original
+# executable is moved to inkscape-core and re-signed with the surrounding app;
+# a small native launcher performs activation and then execs that process.
+ENABLE_ACTIVATION="${ENABLE_ACTIVATION:-1}"
+case "${ENABLE_ACTIVATION}" in
+    1|true|yes)
+        ACTIVATION_CLIENT_DIR="${INTEG_REPO_ROOT}/activation-client/macos"
+        INKSCAPE_EXECUTABLE="${FINAL_APP}/Contents/MacOS/inkscape"
+        INKSCAPE_CORE="${FINAL_APP}/Contents/MacOS/inkscape-core"
+        [[ -x "${INKSCAPE_EXECUTABLE}" ]] \
+            || _die "Inkscape executable not found at ${INKSCAPE_EXECUTABLE}"
+        [[ -n "${ACTIVATION_SERVER_URL:-}" ]] \
+            || _die "ACTIVATION_SERVER_URL is required for protected builds. Set ENABLE_ACTIVATION=0 only for local development."
+
+        _log "Installing native ${MAC_ARCH} activation launcher ..."
+        mv "${INKSCAPE_EXECUTABLE}" "${INKSCAPE_CORE}"
+        MAC_ARCH="${MAC_ARCH}" \
+        ACTIVATION_SERVER_URL="${ACTIVATION_SERVER_URL}" \
+        LICENSE_PUBLIC_KEY_FILE="${LICENSE_PUBLIC_KEY_FILE:-${ACTIVATION_CLIENT_DIR}/license-public-key.b64}" \
+        ALLOW_INSECURE_LOCAL_ACTIVATION="${ALLOW_INSECURE_LOCAL_ACTIVATION:-0}" \
+            bash "${ACTIVATION_CLIENT_DIR}/build-launcher.sh" "${INKSCAPE_EXECUTABLE}"
+        ;;
+    0|false|no)
+        _warn "Activation launcher disabled for this local development build."
+        ;;
+    *)
+        _die "ENABLE_ACTIVATION must be 1 or 0 (got ${ENABLE_ACTIVATION})"
+        ;;
+esac
+
 # ---------- 4. codesign EVERYTHING ----------
 # Signing strategy is selectable:
 #   SIGNING_IDENTITY set (e.g. "Developer ID Application: ...")

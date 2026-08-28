@@ -1,0 +1,25 @@
+services:
+  activation-server:
+    build:
+      context: ..
+      dockerfile: activation-server/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - activation-data:/data
+    secrets:
+      - license_private_key
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  activation-data:
+
+secrets:
+  license_private_key:
+    file: ./secrets/license_private_key.pem

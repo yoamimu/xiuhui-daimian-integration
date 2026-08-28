@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}新建授权{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <h1>新建一年期授权</h1>
+    <p>默认从付款当天开始，次年同日到期，只允许绑定一台 Mac。</p>
+  </div>
+</div>
+
+<form method="post" class="editor-form" data-license-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="form-grid">
+    <div class="field wide">
+      <label for="customer_name">客户名称</label>
+      <input id="customer_name" name="customer_name" maxlength="120" value="{{ request.form.get('customer_name', '') }}" autofocus>
+    </div>
+    <div class="field wide">
+      <label for="order_reference">订单号或付款备注</label>
+      <input id="order_reference" name="order_reference" maxlength="120" value="{{ request.form.get('order_reference', '') }}">
+    </div>
+    <div class="field">
+      <label for="starts_on">开始日期</label>
+      <input id="starts_on" name="starts_on" type="date" value="{{ starts_on }}" required>
+    </div>
+    <div class="field">
+      <label for="expires_on">到期日期</label>
+      <input id="expires_on" name="expires_on" type="date" value="{{ expires_on }}" required>
+    </div>
+    <div class="field">
+      <label for="max_devices">允许设备数</label>
+      <input id="max_devices" name="max_devices" type="number" min="1" max="10" value="{{ request.form.get('max_devices', '1') }}" required>
+    </div>
+    <div class="field wide">
+      <label for="notes">内部备注</label>
+      <textarea id="notes" name="notes" maxlength="1000" rows="4">{{ request.form.get('notes', '') }}</textarea>
+    </div>
+  </div>
+  <div class="form-actions">
+    <a class="button" href="{{ url_for('admin.licenses') }}">取消</a>
+    <button class="button primary" type="submit">生成激活码</button>
+  </div>
+</form>
+{% endblock %}

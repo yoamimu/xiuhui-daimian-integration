@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}激活码已生成{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <h1>激活码已生成</h1>
+    <p>{{ license.customer_name or '未填写客户' }} · {{ license.starts_on }} 至 {{ license.expires_on }}</p>
+  </div>
+</div>
+
+<section class="result-band">
+  <label for="activation-code">请立即复制并发送给客户</label>
+  <div class="copy-row">
+    <input id="activation-code" value="{{ activation_code }}" readonly>
+    <button class="button primary" type="button" data-copy-target="activation-code">复制激活码</button>
+  </div>
+  <p>服务器只保存激活码摘要，离开此页后无法再次查看完整激活码。</p>
+</section>
+
+<div class="form-actions">
+  <a class="button" href="{{ url_for('admin.license_detail', public_id=license.public_id) }}">查看授权</a>
+  <a class="button primary" href="{{ url_for('admin.new_license') }}">继续新建</a>
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}授权列表{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <h1>授权列表</h1>
+    <p>共显示 {{ licenses|length }} 条授权</p>
+  </div>
+  <form class="search" method="get">
+    <label class="sr-only" for="q">搜索</label>
+    <input id="q" name="q" value="{{ query }}" placeholder="客户、订单号或激活码末四位">
+    <button class="button" type="submit">搜索</button>
+  </form>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>客户</th>
+        <th>激活码</th>
+        <th>有效期</th>
+        <th>设备</th>
+        <th>状态</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in licenses %}
+      <tr>
+        <td>
+          <strong>{{ item.customer_name or '未填写客户' }}</strong>
+          {% if item.order_reference %}<small>订单：{{ item.order_reference }}</small>{% endif %}
+        </td>
+        <td><code>{{ item.code_hint }}</code></td>
+        <td>{{ item.starts_on }} 至 {{ item.expires_on }}</td>
+        <td>{{ item.active_devices }}/{{ item.max_devices }}</td>
+        <td>
+          {% if item.status == 'revoked' %}
+            <span class="status danger">已停用</span>
+          {% elif item.expires_on <= today %}
+            <span class="status muted">已到期</span>
+          {% else %}
+            <span class="status good">有效</span>
+          {% endif %}
+        </td>
+        <td class="action-cell"><a href="{{ url_for('admin.license_detail', public_id=item.public_id) }}">管理</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="empty">还没有授权记录。</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

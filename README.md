@@ -34,6 +34,16 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - 导出格式中优先照顾 DST 使用场景。
 - 修正本地预览构建中已发现的 Ink/Stitch 依赖、颜色解析和界面体验问题。
 
+## 一机一码授权
+
+下一版 macOS 官方安装包将使用独立的原生授权启动器，不修改 Inkscape 或 Ink/Stitch 的绘图功能代码。所有客户下载相同的架构安装包，付款后获得唯一激活码；首次激活绑定一台 Mac，授权期限按后台填写的付款日期起算一年。换机时由管理员解绑旧设备，已解绑设备不能再次抢占名额。
+
+- 授权服务与管理后台：[activation-server/README.md](activation-server/README.md)
+- macOS 客户端设计：[activation-client/macos/README.md](activation-client/macos/README.md)
+- 授权隐私说明：[docs/ACTIVATION_PRIVACY.md](docs/ACTIVATION_PRIVACY.md)
+
+授权层用于管理官方构建包的商业交付，不改变本项目及上游组件的 GPL 权利。对应源码仍按 GPL 提供，接收者依法可以研究、修改和重新构建，因此该机制不应被描述为不可破解或禁止再分发的 DRM。
+
 ## 许可
 
 本整合版按 GPL-3.0-or-later 策略发布。
@@ -57,6 +67,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - `overlays/inkstitch/`: 当前补丁之外需要额外复制的新文件。
 - `legal/`: 上游许可文件和本项目发布规则。
 - `scripts/`: 本地构建和补丁应用脚本。
+- `activation-client/`: macOS 原生授权启动器。
+- `activation_server/` 与 `activation-server/`: 授权服务源码、容器和 Nginx 部署配置。
+- `tests/`: 授权服务与双架构客户端回归测试。
 - `release/`: 发布说明模板；不提交大体积安装包。
 
 ## 开发与构建建议

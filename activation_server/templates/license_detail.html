@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}授权详情{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <h1>{{ license.customer_name or '未填写客户' }}</h1>
+    <p><code>{{ license.code_hint }}</code>{% if license.order_reference %} · 订单 {{ license.order_reference }}{% endif %}</p>
+  </div>
+  <span class="status {{ 'good' if license.status == 'active' else 'danger' }}">{{ '有效' if license.status == 'active' else '已停用' }}</span>
+</div>
+
+<section class="detail-band">
+  <dl class="detail-grid">
+    <div><dt>开始日期</dt><dd>{{ license.starts_on }}</dd></div>
+    <div><dt>到期日期</dt><dd>{{ license.expires_on }}</dd></div>
+    <div><dt>允许设备</dt><dd>{{ license.max_devices }} 台</dd></div>
+    <div><dt>创建时间</dt><dd>{{ license.created_at }}</dd></div>
+    {% if license.notes %}<div class="wide"><dt>内部备注</dt><dd>{{ license.notes }}</dd></div>{% endif %}
+  </dl>
+
+  <div class="inline-actions">
+    <form method="post" action="{{ url_for('admin.update_expiry', public_id=license.public_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="expires_on">修改到期日</label>
+      <input id="expires_on" name="expires_on" type="date" value="{{ license.expires_on }}" required>
+      <button class="button" type="submit">保存</button>
+    </form>
+    <form method="post" action="{{ url_for('admin.update_status', public_id=license.public_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="status" value="{{ 'revoked' if license.status == 'active' else 'active' }}">
+      <button class="button {{ 'danger' if license.status == 'active' else '' }}" type="submit">{{ '停用授权' if license.status == 'active' else '恢复授权' }}</button>
+    </form>
+  </div>
+</section>
+
+<section class="section-block">
+  <div class="section-heading">
+    <h2>设备绑定</h2>
+    <span>{{ activations|selectattr('unbound_at', 'none')|list|length }}/{{ license.max_devices }}</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>设备</th><th>系统与架构</th><th>绑定时间</th><th>最后验证</th><th>状态</th><th></th></tr></thead>
+      <tbody>
+      {% for item in activations %}
+        <tr>
+          <td><strong>{{ item.device_label or 'Mac' }}</strong><small><code>{{ item.device_id[:12] }}…</code></small></td>
+          <td>{{ item.macos_version or '未知' }} · {{ item.architecture or '未知' }}<small>{{ item.app_version }}</small></td>
+          <td>{{ item.bound_at }}</td>
+          <td>{{ item.last_seen_at }}</td>
+          <td>{% if item.unbound_at %}<span class="status muted">已解绑</span>{% else %}<span class="status good">已绑定</span>{% endif %}</td>
+          <td class="action-cell">
+            {% if not item.unbound_at %}
+            <form method="post" action="{{ url_for('admin.unbind', public_id=license.public_id, activation_id=item.id) }}" data-confirm="确认解绑这台 Mac？该旧设备将不能再次占用此激活码，新设备可以重新激活。">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="link-button danger-text" type="submit">解绑</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="empty">尚未绑定设备。</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section-block">
+  <div class="section-heading"><h2>操作记录</h2></div>
+  <div class="table-wrap compact">
+    <table>
+      <thead><tr><th>时间</th><th>操作</th><th>来源</th><th>详情</th></tr></thead>
+      <tbody>
+      {% for item in audits %}
+        <tr><td>{{ item.created_at }}</td><td>{{ item.action }}</td><td>{{ item.remote_ip }}</td><td><code>{{ item.details }}</code></td></tr>
+      {% else %}
+        <tr><td colspan="4" class="empty">暂无操作记录。</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

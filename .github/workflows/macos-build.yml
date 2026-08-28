@@ -40,6 +40,10 @@ jobs:
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
       TEAM_ID: ${{ secrets.TEAM_ID }}
+      # Production packages must always include activation.  The bundle step
+      # fails closed when the HTTPS endpoint secret is absent.
+      ENABLE_ACTIVATION: '1'
+      ACTIVATION_SERVER_URL: ${{ secrets.ACTIVATION_SERVER_URL }}
 
     steps:
       - name: Checkout integration repo
