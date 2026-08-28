@@ -128,6 +128,15 @@ brew bundle install --file="${BREWFILE}" --no-lock 2>/dev/null \
     || { brew link --overwrite python@3.13 2>/dev/null || true;
          brew bundle install --file="${BREWFILE}"; }
 
+# Ink/Stitch's optional DBus helper imports gi. On Apple Silicon we supply it
+# from Homebrew so the --system-site-packages venv does not build PyGObject
+# from source; Homebrew no longer publishes an Intel bottle, so x86_64 skips
+# this non-core helper instead.
+if [[ "${MAC_ARCH}" == "arm64" ]]; then
+    _log "Installing arm64-only pygobject3 for Ink/Stitch DBus helper..."
+    brew install pygobject3
+fi
+
 # ---------- workspace check ----------
 PREVIEW_ROOT="${PREVIEW_ROOT:-${HOME}/xiuhui-build/inkscape-inkstitch-preview}"
 INKSCAPE_SRC="${PREVIEW_ROOT}/src/inkscape"
