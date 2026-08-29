@@ -10,7 +10,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 > 非官方声明：绣绘呆棉整合版是基于 Inkscape 与 Ink/Stitch 的非官方修改版。Inkscape、Ink/Stitch 及其相关标识归各自项目和权利人所有。本项目不得暗示获得 Inkscape Project 或 Ink/Stitch 维护者的官方认可、认证或背书。
 
-当前已发布 macOS `v0.1.0` 双架构测试版，分别支持 Apple Silicon (`arm64`) 与 Intel (`x86_64`) Mac。安装包、校验值和首次启动说明见 [GitHub Releases](https://github.com/yoamimu/xiuhui-daimian-integration/releases)；Windows 或其他平台版本仍在后续计划中。
+当前已发布 macOS `v0.1.0` 双架构测试版，分别支持 Apple Silicon (`arm64`) 与 Intel (`x86_64`) Mac。安装包、校验值和首次启动说明见 [GitHub Releases](https://github.com/yoamimu/xiuhui-daimian-integration/releases)；Windows 或其他平台版本仍在后续计划中。版本进度、构建结果和测试结论见 [项目日志](docs/PROJECT_LOG.md)。
 
 ## macOS 版本
 
@@ -71,6 +71,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - `activation_server/` 与 `activation-server/`: 授权服务源码、容器和 Nginx 部署配置。
 - `tests/`: 授权服务与双架构客户端回归测试。
 - `release/`: 发布说明模板；不提交大体积安装包。
+- `docs/PROJECT_LOG.md`: 项目进度、版本、构建、测试结论和客户包状态。
 
 ## 开发与构建建议
 

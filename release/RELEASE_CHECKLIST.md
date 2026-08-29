@@ -9,6 +9,7 @@ Before publishing a release:
 - [ ] Confirm installer does not impose non-commercial-only or no-redistribution restrictions.
 - [ ] Confirm Inkscape and Ink/Stitch upstream attribution is present.
 - [ ] Confirm release notes describe the major modifications.
+- [ ] Update `docs/PROJECT_LOG.md` with version status, build result, test conclusions, and whether the package is customer-ready.
 - [ ] Smoke test import, export, Ink/Stitch params, DST export and floating panels.
 
 ## macOS dmg build (arm64 + x86_64)

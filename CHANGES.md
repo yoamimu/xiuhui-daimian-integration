@@ -21,6 +21,10 @@ Build and verification:
 - Verified first-device activation, second-device rejection, administrator unbind, old-device reactivation rejection, replacement-device activation, expiry handling, signed token validation, and leap-day expiry calculation.
 - Verified the protected arm64 launcher inside the real Xiuhui app bundle: activation succeeds, control passes to the original app, and the existing Ink/Stitch interface remains available.
 
+Project log:
+
+- Added `docs/PROJECT_LOG.md` to record version status, build results, rendering test conclusions, and whether a package is customer-ready.
+
 Deployment status:
 
 - Production HTTPS deployment and protected v0.2.0 package publication remain pending until the final authorization domain is configured on the existing Ubuntu server.
