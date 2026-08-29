@@ -56,13 +56,23 @@ _log "Submitting ${DMG_PATH} for notarization (this can take a few minutes)..."
 SUBMIT_OUT="$(mktemp -t xiuhui-notary)"
 trap 'rm -f "${SUBMIT_OUT}"' EXIT
 
-if ! xcrun notarytool submit "${DMG_PATH}" "${AUTH_ARGS[@]}" --wait --output-format json > "${SUBMIT_OUT}" 2>&1; then
-    _warn "notarytool submit returned non-zero. Output follows."
-    cat "${SUBMIT_OUT}" >&2
-fi
+STATUS="Unknown"
+SUBMIT_ID=""
+for attempt in 1 2 3; do
+    : > "${SUBMIT_OUT}"
+    if ! xcrun notarytool submit "${DMG_PATH}" "${AUTH_ARGS[@]}" --wait --output-format json > "${SUBMIT_OUT}" 2>&1; then
+        _warn "notarytool submit attempt ${attempt}/3 returned non-zero. Output follows."
+        cat "${SUBMIT_OUT}" >&2
+    fi
 
-STATUS="$(jq -r '.status // "Unknown"' "${SUBMIT_OUT}" 2>/dev/null || echo "Unknown")"
-SUBMIT_ID="$(jq -r '.id // empty' "${SUBMIT_OUT}" 2>/dev/null || true)"
+    STATUS="$(jq -r '.status // "Unknown"' "${SUBMIT_OUT}" 2>/dev/null || echo "Unknown")"
+    SUBMIT_ID="$(jq -r '.id // empty' "${SUBMIT_OUT}" 2>/dev/null || true)"
+    [[ "${STATUS}" == "Accepted" || "${STATUS}" == "Invalid" ]] && break
+    if (( attempt < 3 )); then
+        _warn "Notarization service did not return a final status; retrying in 30 seconds."
+        sleep 30
+    fi
+done
 
 _log "Notarization status: ${STATUS}"
 
