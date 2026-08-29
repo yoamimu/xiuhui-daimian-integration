@@ -100,7 +100,12 @@ BREWFILE="${SCRIPT_DIR}/Brewfile"
 [[ -f "${BREWFILE}" ]] || _die "Brewfile not found at ${BREWFILE}"
 
 _log "Updating Homebrew formulae index..."
-brew update
+# A preinstalled runner may contain a stale third-party tap. Homebrew can
+# still update core formula metadata and install the Brewfile dependencies,
+# so do not make an unrelated tap import failure abort the build.
+if ! brew update; then
+    _warn "Homebrew update reported an error; continuing with the refreshed core metadata."
+fi
 
 _log "Installing pinned poppler 25.05.0 + gpgme 1.24.3 (newer versions break pdfinput)..."
 # Newer Homebrew rejects direct path installs ("formulae must be in a tap"),
