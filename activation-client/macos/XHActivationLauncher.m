@@ -641,6 +641,12 @@ static int XHExecCore(int argc, const char *argv[]) {
         return 70;
     }
 
+    // GTK's GPU renderer can crash in Cairo clip replay while drawing over
+    // imported images, especially when a window spans or moves between
+    // displays.  Prefer the Cairo renderer for predictable customer builds.
+    // Respect an explicit environment override for diagnostics.
+    if (!getenv("GSK_RENDERER")) setenv("GSK_RENDERER", "cairo", 1);
+
     char **coreArguments = calloc((size_t)argc + 1, sizeof(char *));
     if (!coreArguments) return 71;
     coreArguments[0] = strdup(corePath.fileSystemRepresentation);
