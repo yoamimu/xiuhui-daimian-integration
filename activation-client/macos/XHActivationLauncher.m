@@ -466,6 +466,59 @@ static NSString *XHCompactLicenseToken(NSString *value) {
     return [parts componentsJoinedByString:@""];
 }
 
+static BOOL XHCopyDeviceCode(NSString *deviceCode) {
+    if (!deviceCode.length) return NO;
+    NSData *data = [deviceCode dataUsingEncoding:NSUTF8StringEncoding];
+    NSPipe *pipe = [NSPipe pipe];
+    NSTask *pbcopy = [NSTask new];
+    pbcopy.executableURL = [NSURL fileURLWithPath:@"/usr/bin/pbcopy"];
+    pbcopy.standardInput = pipe;
+    NSError *taskError = nil;
+    [pbcopy launchAndReturnError:&taskError];
+    if (!taskError) {
+        [[pipe fileHandleForWriting] writeData:data];
+        [[pipe fileHandleForWriting] closeFile];
+        [pbcopy waitUntilExit];
+        if (pbcopy.terminationStatus == 0) return YES;
+    }
+
+    NSPasteboard *pasteboard = NSPasteboard.generalPasteboard;
+    [pasteboard declareTypes:@[NSPasteboardTypeString] owner:nil];
+    BOOL written = [pasteboard setString:deviceCode forType:NSPasteboardTypeString];
+    NSString *check = [pasteboard stringForType:NSPasteboardTypeString];
+    return written && [check isEqualToString:deviceCode];
+}
+
+@interface XHDeviceCodeField : NSTextField
+@property(nonatomic, copy) NSString *deviceCode;
+@end
+
+@implementation XHDeviceCodeField
+- (void)copy:(id)sender {
+    (void)sender;
+    XHCopyDeviceCode(self.deviceCode ?: self.stringValue);
+}
+@end
+
+@interface XHLicenseInputTextView : NSTextView
+@end
+
+@implementation XHLicenseInputTextView
+- (void)paste:(id)sender {
+    (void)sender;
+    NSString *value = [NSPasteboard.generalPasteboard stringForType:NSPasteboardTypeString];
+    if (value.length) self.string = value;
+}
+- (void)readClipboard:(id)sender {
+    (void)sender;
+    NSString *value = [NSPasteboard.generalPasteboard stringForType:NSPasteboardTypeString];
+    if (value.length) {
+        self.string = value;
+        [self.window makeFirstResponder:self];
+    }
+}
+@end
+
 static NSString *XHPromptForOfflineLicense(NSString *deviceCode, NSString *message) {
     NSString *enteredToken = @"";
     NSString *promptMessage = message ?: @"";
@@ -484,12 +537,18 @@ static NSString *XHPromptForOfflineLicense(NSString *deviceCode, NSString *messa
         NSTextField *deviceLabel = [NSTextField labelWithString:@"本机设备码"];
         deviceLabel.frame = NSMakeRect(0, 126, 500, 18);
 
-        NSTextField *deviceField = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 96, 500, 26)];
+        XHDeviceCodeField *deviceField = [[XHDeviceCodeField alloc] initWithFrame:NSMakeRect(0, 96, 500, 26)];
         deviceField.stringValue = deviceCode ?: @"";
-        deviceField.editable = NO;
+        deviceField.deviceCode = deviceCode ?: @"";
+        deviceField.alignment = NSTextAlignmentLeft;
+        deviceField.target = deviceField;
+        deviceField.action = @selector(copy:);
+        deviceField.editable = YES;
         deviceField.selectable = YES;
+        deviceField.bordered = YES;
+        deviceField.drawsBackground = YES;
         deviceField.font = [NSFont monospacedSystemFontOfSize:12 weight:NSFontWeightRegular];
-        deviceField.toolTip = @"将此设备码发给销售方";
+        deviceField.toolTip = @"可点击后按 Command-C 复制设备码";
 
         NSTextField *licenseLabel = [NSTextField labelWithString:@"离线授权码"];
         licenseLabel.frame = NSMakeRect(0, 68, 500, 18);
@@ -497,7 +556,7 @@ static NSString *XHPromptForOfflineLicense(NSString *deviceCode, NSString *messa
         NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, 500, 64)];
         scrollView.hasVerticalScroller = YES;
         scrollView.borderType = NSBezelBorder;
-        NSTextView *input = [[NSTextView alloc] initWithFrame:scrollView.bounds];
+        XHLicenseInputTextView *input = [[XHLicenseInputTextView alloc] initWithFrame:scrollView.bounds];
         input.string = enteredToken;
         input.font = [NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightRegular];
         input.textContainerInset = NSMakeSize(6, 6);
@@ -506,9 +565,14 @@ static NSString *XHPromptForOfflineLicense(NSString *deviceCode, NSString *messa
         input.automaticTextReplacementEnabled = NO;
         scrollView.documentView = input;
 
+        NSButton *pasteButton = [NSButton buttonWithTitle:@"读取剪贴板" target:input action:@selector(readClipboard:)];
+        pasteButton.frame = NSMakeRect(380, 68, 120, 22);
+        pasteButton.bezelStyle = NSBezelStyleRounded;
+
         [accessory addSubview:deviceLabel];
         [accessory addSubview:deviceField];
         [accessory addSubview:licenseLabel];
+        [accessory addSubview:pasteButton];
         [accessory addSubview:scrollView];
         alert.accessoryView = accessory;
 
@@ -519,10 +583,10 @@ static NSString *XHPromptForOfflineLicense(NSString *deviceCode, NSString *messa
             return XHCompactLicenseToken(enteredToken);
         }
         if (response == NSAlertSecondButtonReturn) {
-            NSPasteboard *pasteboard = NSPasteboard.generalPasteboard;
-            [pasteboard clearContents];
-            [pasteboard setString:deviceCode forType:NSPasteboardTypeString];
-            promptMessage = @"设备码已复制。发给销售方取得授权码后，粘贴到下方。";
+            BOOL copied = XHCopyDeviceCode(deviceCode);
+            promptMessage = copied
+                ? @"设备码已复制。发给销售方取得授权码后，粘贴到下方。"
+                : @"复制设备码失败。请点击设备码文字后按 Command-C，或重试。";
             continue;
         }
         return nil;

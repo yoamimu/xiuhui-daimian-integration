@@ -7,7 +7,7 @@
 # This script is cheap to re-run as long as 02-build-inkscape.sh and
 # 03-build-inkstitch.sh have completed at least once.
 #
-# Output: ${PREVIEW_ROOT}/build/Inkscape-绣绘呆棉版.app
+# Output: ${PREVIEW_ROOT}/build/绣绘-苹果芯片.app or 绣绘-Intel.app
 #
 # Override PREVIEW_ROOT to use a non-default source workspace.
 
@@ -28,8 +28,13 @@ case "${MAC_ARCH}" in
     *) _die "MAC_ARCH must be arm64 or x86_64 (got ${MAC_ARCH})" ;;
 esac
 
+if [[ "${MAC_ARCH}" == "arm64" ]]; then
+    ARCH_LABEL="苹果芯片"
+else
+    ARCH_LABEL="Intel"
+fi
 RAW_APP="${PREVIEW_ROOT}/build/Inkscape-${MAC_ARCH}.app"
-FINAL_APP="${PREVIEW_ROOT}/build/绣绘-${MAC_ARCH}.app"
+FINAL_APP="${PREVIEW_ROOT}/build/绣绘-${ARCH_LABEL}.app"
 INKSTITCH_DIST_APP="${PREVIEW_ROOT}/src/inkstitch/dist/inkstitch.app"
 
 [[ -d "${RAW_APP}" ]]           || _die "Raw Inkscape bundle not found at ${RAW_APP}. Run 02-build-inkscape.sh."

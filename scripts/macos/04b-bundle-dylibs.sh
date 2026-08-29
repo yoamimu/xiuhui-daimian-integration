@@ -17,7 +17,7 @@
 # Works for arm64 (/opt/homebrew) and x86_64 (/usr/local) — auto-detected
 # from MAC_ARCH (defaults to the host architecture).
 #
-# Output: modifies ${PREVIEW_ROOT}/build/绣绘-${MAC_ARCH}.app in place.
+# Output: modifies the architecture-labeled app in place.
 # Run AFTER 04-bundle.sh and BEFORE 05-make-dmg.sh.
 
 set -euo pipefail
@@ -37,7 +37,12 @@ case "${MAC_ARCH}" in
     *)      _die "MAC_ARCH must be arm64 or x86_64 (got ${MAC_ARCH})" ;;
 esac
 
-APP="${PREVIEW_ROOT}/build/绣绘-${MAC_ARCH}.app"
+if [[ "${MAC_ARCH}" == "arm64" ]]; then
+    ARCH_LABEL="苹果芯片"
+else
+    ARCH_LABEL="Intel"
+fi
+APP="${PREVIEW_ROOT}/build/绣绘-${ARCH_LABEL}.app"
 [[ -d "${APP}/Contents" ]] || _die "App not found at ${APP}. Run 04-bundle.sh first."
 
 FW="${APP}/Contents/Frameworks"

@@ -56,6 +56,17 @@ static NSString *XHCSVField(NSString *value) {
 @property(nonatomic, strong) NSTextField *statusLabel;
 @end
 
+@interface XHDeviceCodeField : NSTextField
+@end
+
+@implementation XHDeviceCodeField
+- (void)paste:(id)sender {
+    (void)sender;
+    NSString *value = [NSPasteboard.generalPasteboard stringForType:NSPasteboardTypeString];
+    if (value.length) self.stringValue = value;
+}
+@end
+
 @implementation XHGeneratorDelegate
 
 - (NSString *)privateKeyPath {
@@ -112,10 +123,15 @@ static NSString *XHCSVField(NSString *value) {
     [content addSubview:self.orderField];
 
     [content addSubview:[self label:@"客户设备码" frame:NSMakeRect(28, 368, 120, 20)]];
-    self.deviceField = [[NSTextField alloc] initWithFrame:NSMakeRect(150, 362, 482, 28)];
+    self.deviceField = [[XHDeviceCodeField alloc] initWithFrame:NSMakeRect(150, 362, 350, 28)];
     self.deviceField.placeholderString = @"粘贴以 XHD- 开头的设备码";
     self.deviceField.font = [NSFont monospacedSystemFontOfSize:12 weight:NSFontWeightRegular];
     [content addSubview:self.deviceField];
+
+    NSButton *pasteDeviceButton = [NSButton buttonWithTitle:@"读取剪贴板" target:self action:@selector(pasteDeviceCode:)];
+    pasteDeviceButton.frame = NSMakeRect(510, 362, 122, 28);
+    pasteDeviceButton.bezelStyle = NSBezelStyleRounded;
+    [content addSubview:pasteDeviceButton];
 
     [content addSubview:[self label:@"付款日期" frame:NSMakeRect(28, 326, 120, 20)]];
     self.datePicker = [[NSDatePicker alloc] initWithFrame:NSMakeRect(150, 320, 180, 28)];
@@ -163,6 +179,18 @@ static NSString *XHCSVField(NSString *value) {
     self.statusLabel.stringValue = message;
     self.statusLabel.textColor = NSColor.systemRedColor;
     NSBeep();
+}
+
+- (void)pasteDeviceCode:(id)sender {
+    (void)sender;
+    NSString *value = [NSPasteboard.generalPasteboard stringForType:NSPasteboardTypeString];
+    if (!value.length) {
+        [self showError:@"剪贴板没有可读取的文字，请先复制客户设备码。"];
+        return;
+    }
+    self.deviceField.stringValue = value;
+    self.statusLabel.stringValue = @"已从剪贴板读取设备码，请核对后生成授权码。";
+    self.statusLabel.textColor = NSColor.secondaryLabelColor;
 }
 
 - (NSData *)signatureForPayload:(NSData *)payload error:(NSString **)errorMessage {
