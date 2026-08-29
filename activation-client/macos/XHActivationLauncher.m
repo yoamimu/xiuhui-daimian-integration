@@ -641,10 +641,36 @@ static int XHExecCore(int argc, const char *argv[]) {
         return 70;
     }
 
-    // Use GTK's OpenGL renderer for responsive drawing over imported images
-    // and stable composition on external displays. Respect an explicit
-    // environment override for diagnostics and compatibility testing.
-    if (!getenv("GSK_RENDERER")) setenv("GSK_RENDERER", "gl", 1);
+    // Keep GTK window composition on Cairo. The default GSK GL renderer
+    // crashes in cairo clip replay while drawing; Cairo avoids that crash.
+    // Respect an explicit environment override for diagnostics.
+    if (!getenv("GSK_RENDERER")) setenv("GSK_RENDERER", "cairo", 1);
+
+    // Enable Inkscape's own canvas OpenGL backend by default. This is not
+    // GSK_RENDERER; it only changes how the canvas paints, and was the
+    // combination that stayed up while drawing in the v0.2.2 experiments.
+    NSString *prefsDir = [NSHomeDirectory() stringByAppendingPathComponent:@".config/inkscape"];
+    NSString *prefsPath = [prefsDir stringByAppendingPathComponent:@"preferences.xml"];
+    NSFileManager *files = NSFileManager.defaultManager;
+    [files createDirectoryAtPath:prefsDir withIntermediateDirectories:YES attributes:nil error:nil];
+    NSString *prefs = [NSString stringWithContentsOfFile:prefsPath encoding:NSUTF8StringEncoding error:nil];
+    if (!prefs.length) {
+        prefs = @"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
+                 @"<inkscape version=\"1\">\n"
+                 @"  <group id=\"options\">\n"
+                 @"    <group id=\"rendering\" request_opengl=\"1\" />\n"
+                 @"  </group>\n"
+                 @"</inkscape>\n";
+        [prefs writeToFile:prefsPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
+    } else if ([prefs rangeOfString:@"request_opengl="].location == NSNotFound) {
+        NSString *updated = [prefs stringByReplacingOccurrencesOfString:@"id=\"rendering\""
+                                                            withString:@"id=\"rendering\"\n       request_opengl=\"1\""];
+        if ([updated isEqualToString:prefs]) {
+            updated = [prefs stringByReplacingOccurrencesOfString:@"</inkscape>"
+                                                       withString:@"  <group id=\"options\">\n    <group id=\"rendering\" request_opengl=\"1\" />\n  </group>\n</inkscape>"];
+        }
+        [updated writeToFile:prefsPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
+    }
 
     char **coreArguments = calloc((size_t)argc + 1, sizeof(char *));
     if (!coreArguments) return 71;

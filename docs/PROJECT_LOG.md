@@ -8,8 +8,9 @@
 
 - 正式可发客户包：仅 `v0.1.0`
 - 最新双架构构建成功包：`v0.2.2`（内部验证，不建议作为客户正式包）
+- 最新内部测试包：`v0.2.3-闪烁测试`（仅 Apple Silicon）
 - 阻塞项：macOS 绘制时整幅闪烁；GTK `gl` 路径会崩溃
-- 下一步：改画布刷新路径，目标是 `cairo` 防崩的同时减少整窗重绘闪烁
+- 下一步：用 v0.2.3 测试包验证“cairo + 画布 OpenGL”默认组合是否不崩、闪烁是否减轻
 
 ## 基线
 
@@ -26,7 +27,8 @@
 | v0.1.0 | 已发布测试版 | arm64 + x86_64 | 首个双架构包。ad-hoc 签名，未公证。无激活码。 |
 | v0.2.0 | 内部/客户过渡包 | arm64 + x86_64 | 加入离线一机一码。桌面仍有安装包，但渲染问题未闭环。 |
 | v0.2.1 | 内部验证包 | arm64 + x86_64 | 崩溃修复验证版。强制 `GSK_RENDERER=cairo`，崩少了，但会闪。 |
-| v0.2.2 | 内部验证包 | arm64 + x86_64 | 最新成功构建。强制 `GSK_RENDERER=gl`。双架构构建成功，但绘制会崩。 |
+| v0.2.2 | 内部验证包 | arm64 + x86_64 | 强制 `GSK_RENDERER=gl`。双架构构建成功，但绘制会崩。 |
+| v0.2.3-闪烁测试 | 内部测试包 | arm64 | 默认改回 `GSK_RENDERER=cairo`，并在无该偏好时写入画布 `request_opengl=1`。半天内基于 v0.2.2 app 注入新启动器，未重编 Inkscape。 |
 
 本地已下载的 v0.2.2：
 
@@ -37,6 +39,12 @@
 
 GitHub 构建：<https://github.com/yoamimu/xiuhui-daimian-integration/actions/runs/33257225799>
 
+v0.2.3-闪烁测试已放到桌面：
+
+- `~/Desktop/绣绘-v0.2.3-闪烁测试-苹果芯片.dmg`
+  SHA-256 `bde6dee0e91291693b96a97ecd77079c4c6fbe4fe44c2697c627ddfff840cf7b`
+  成功标准：不崩，且“一画整幅闪”明显减轻，能正常画下去。尚未经用户复测。
+
 ## 关键提交
 
 | 提交 | 日期 | 结论 |
@@ -46,6 +54,7 @@ GitHub 构建：<https://github.com/yoamimu/xiuhui-daimian-integration/actions/r
 | `0dced7e` | 2026-08-29 | 为修闪烁，改成 `GSK_RENDERER=gl`。闪少了，崩溃回来。 |
 | `5ebb7b2` | 2026-08-29 | Intel runner 预装失效 Homebrew tap，Bootstrap 不再因此中断。 |
 | `78650ab` | 2026-08-29 | 公证瞬时网络失败最多重试 3 次。 |
+| 未提交启动器改动 | 2026-08-30 | v0.2.3 测试包：启动器改回 `cairo`，并默认补上画布 OpenGL 偏好。 |
 
 ## 构建记录
 

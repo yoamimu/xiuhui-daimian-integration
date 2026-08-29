@@ -25,6 +25,10 @@ Project log:
 
 - Added `docs/PROJECT_LOG.md` to record version status, build results, rendering test conclusions, and whether a package is customer-ready.
 
+Rendering:
+
+- macOS launcher now defaults GTK composition to `GSK_RENDERER=cairo` to avoid the GPU clip-replay crash, and seeds Inkscape canvas `request_opengl=1` when that preference is absent. This is an internal flicker-test combination, not a claimed complete fix.
+
 Deployment status:
 
 - Production HTTPS deployment and protected v0.2.0 package publication remain pending until the final authorization domain is configured on the existing Ubuntu server.
