@@ -1,0 +1,65 @@
+diff --git a/src/ui/widget/canvas.cpp b/src/ui/widget/canvas.cpp
+index 58956e22f3..bc30c8763a 100644
+--- a/src/ui/widget/canvas.cpp
++++ b/src/ui/widget/canvas.cpp
+@@ -288,6 +288,8 @@ public:
+ 
+     // Trivial overload of GtkWidget function.
+     void queue_draw_area(Geom::IntRect const &rect);
++    void request_present();
++    guint present_tick = 0;
+ 
+     // For tracking the last known mouse position. (The function Gdk::Window::get_device_position cannot be used because of slow X11 round-trips. Remove this workaround when X11 dies.)
+     std::optional<Geom::Point> last_mouse;
+@@ -506,6 +508,11 @@ void CanvasPrivate::deactivate()
+         redraw_requested = false;
+         assert(!schedule_redraw_conn);
+     }
++
++    if (present_tick) {
++        q->remove_tick_callback(present_tick);
++        present_tick = 0;
++    }
+ }
+ 
+ void CanvasPrivate::deactivate_graphics()
+@@ -766,6 +773,7 @@ void CanvasPrivate::after_redraw()
+ 
+     // Commit tiles before stores.finished_draw() to avoid changing stores while tiles are still pending.
+     commit_tiles();
++    request_present();
+ 
+     // Handle any pending stores action.
+     bool stores_changed = false;
+@@ -1629,11 +1637,28 @@ const Geom::Affine &Canvas::get_geom_affine() const
+     return d->canvasitem_ctx->affine();
+ }
+ 
++void CanvasPrivate::request_present()
++{
++    if (present_tick || !q->get_mapped()) {
++        if (!present_tick) {
++            q->queue_draw();
++        }
++        return;
++    }
++
++    present_tick = q->add_tick_callback([this] (Glib::RefPtr<Gdk::FrameClock> const &) {
++        present_tick = 0;
++        q->queue_draw();
++        return false;
++    });
++}
++
+ void CanvasPrivate::queue_draw_area(const Geom::IntRect &rect)
+ {
+-    q->queue_draw();
+-    // Todo: Use the following if/when gtk supports partial invalidations again.
+-    // q->queue_draw_area(rect.left(), rect.top(), rect.width(), rect.height());
++    // GTK4 no longer supports partial widget invalidation, so every present
++    // redraws the whole canvas. Present on the frame clock instead of after
++    // each tile to avoid flashing incomplete frames while drawing.
++    request_present();
+ }
+ 
+ /**

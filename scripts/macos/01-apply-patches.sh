@@ -22,6 +22,7 @@ INKSCAPE_SRC="${PREVIEW_ROOT}/src/inkscape"
 INKSTITCH_SRC="${PREVIEW_ROOT}/src/inkstitch"
 
 INKSCAPE_PATCH="${REPO_ROOT}/patches/inkscape/0001-xiuhui-daimian-ui-integration.patch"
+INKSCAPE_PATCH_PRESENT="${REPO_ROOT}/patches/inkscape/0002-macos-present-canvas-on-frame-clock.patch"
 INKSTITCH_PATCH="${REPO_ROOT}/patches/inkstitch/0001-zh-cn-localization-and-preview-fixes.patch"
 
 [[ -d "${INKSCAPE_SRC}/.git" ]]  || _die "Inkscape clone not found at ${INKSCAPE_SRC}. Run 00-bootstrap.sh first."
@@ -61,6 +62,10 @@ _pre_check "${INKSTITCH_SRC}" "${INKSTITCH_PATCH}" "Ink/Stitch" "0312dac"
 
 _log "Applying Inkscape patch..."
 git -C "${INKSCAPE_SRC}" apply "${INKSCAPE_PATCH}"
+if [[ -f "${INKSCAPE_PATCH_PRESENT}" ]]; then
+    _log "Applying macOS canvas present patch..."
+    git -C "${INKSCAPE_SRC}" apply "${INKSCAPE_PATCH_PRESENT}"
+fi
 
 _log "Applying Ink/Stitch patch..."
 git -C "${INKSTITCH_SRC}" apply "${INKSTITCH_PATCH}"

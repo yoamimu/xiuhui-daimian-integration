@@ -27,7 +27,8 @@ Project log:
 
 Rendering:
 
-- macOS launcher now defaults GTK composition to `GSK_RENDERER=cairo` to avoid the GPU clip-replay crash, and seeds Inkscape canvas `request_opengl=1` when that preference is absent. This is an internal flicker-test combination, not a claimed complete fix.
+- macOS launcher now defaults GTK composition to `GSK_RENDERER=cairo` to avoid the GPU clip-replay crash, and seeds Inkscape canvas `request_opengl=1` when that preference is absent.
+- Canvas tile presents are coalesced onto the GTK frame clock instead of calling `queue_draw()` after every tile, to reduce whole-canvas flashing while drawing.
 
 Deployment status:
 
