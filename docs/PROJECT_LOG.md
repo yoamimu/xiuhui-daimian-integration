@@ -49,8 +49,9 @@ v0.2.3-闪烁测试已放到桌面：
 v0.2.4-刷新修复已放到桌面：
 
 - `~/Desktop/绣绘-v0.2.4-刷新修复-苹果芯片.dmg`
-  SHA-256 `f7d7254b4ed5c3ccf5ea88795086ffe9d8c972203ef2cc6d68e731a6213c6bb1`
-  改动：画布 `queue_draw_area()` 改为 frame-clock present；GTK 仍用 cairo，画布仍默认 OpenGL。待用户复测闪烁。
+  SHA-256 `5e0a2677468c7b6a7753ddc502ca40edafdd7b73cbbda234d0306a4ebe8858c5`
+  改动：画布按帧提交；GTK 仍用 cairo，画布仍默认 OpenGL。
+  2026-08-30 第一次 ad-hoc 包会弹钥匙串密码并退出。已用 `Developer ID Application: jinyun mu (2JMZH352X8)` 重签同一 app 后重新打包。请先退出绣绘再安装这个新包。
 
 ## 关键提交
 
