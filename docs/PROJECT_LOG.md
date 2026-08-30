@@ -10,7 +10,7 @@
 - 最新双架构构建成功包：`v0.2.2`（内部验证，不建议作为客户正式包）
 - 最新内部测试包：`v0.2.4-刷新修复`
 - Apple Silicon：用户确认不崩、不闪，可继续画
-- Intel：正在出对应包
+- Intel：CI 双架构构建已成功，测试包已放到下载文件夹
 - 下一步：用户复测 Intel v0.2.4
 
 ## 基线
@@ -54,6 +54,9 @@ v0.2.4-刷新修复已放到桌面：
   改动：画布按帧提交；GTK 仍用 cairo，画布仍默认 OpenGL。
   2026-08-30 第一次 ad-hoc 包会弹钥匙串密码并退出。已用 Developer ID 重签。
   Apple Silicon 用户结论：不崩、不闪，可正常画。下载文件：`~/Downloads/绣绘-v0.2.4最新-苹果芯片.dmg`。
+  Intel CI 包：`~/Downloads/绣绘-v0.2.4最新-Intel.dmg`
+  SHA-256 `b495937bbd9ff29101bf5a2f332ee0fab0f4b1f4148c3c9c13d688f3c300cc06`
+  构建：<https://github.com/yoamimu/xiuhui-daimian-integration/actions/runs/33294619292>
 
 ## 关键提交
 
