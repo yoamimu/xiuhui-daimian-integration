@@ -6,12 +6,12 @@
 
 ## 当前状态
 
-- 正式可发客户包：仅 `v0.1.0`
+- 正式可发客户包：`v0.2.4` 双架构（待客户现场激活流程最终验收）
 - 最新双架构构建成功包：`v0.2.2`（内部验证，不建议作为客户正式包）
-- 最新内部测试包：`v0.2.4-刷新修复`
+- 最新客户交付包：`v0.2.4-苹果芯片-正式客户版` / `v0.2.4-Intel-正式客户版`
 - Apple Silicon：用户确认不崩、不闪，可继续画
-- Intel：CI 双架构构建已成功，测试包已放到下载文件夹
-- 下一步：用户复测 Intel v0.2.4
+- Intel：用户确认不崩、不闪，可继续画
+- 下一步：用全新未激活用户环境验证激活窗口、设备码和首次发卡
 
 ## 基线
 
@@ -31,6 +31,7 @@
 | v0.2.2 | 内部验证包 | arm64 + x86_64 | 强制 `GSK_RENDERER=gl`。双架构构建成功，但绘制会崩。 |
 | v0.2.3-闪烁测试 | 内部测试包 | arm64 | 默认 `cairo` + 画布 OpenGL。用户确认不崩，但仍整幅闪。 |
 | v0.2.4-刷新修复 | 内部测试包 | arm64 | 在 v0.2.3 基础上改画布刷新：tile 不再立即整窗 `queue_draw()`，改为跟 GTK frame clock 对齐后再提交。 |
+| v0.2.4-正式客户版 | 客户交付候选 | arm64 + x86_64 | Developer ID 签名；DMG 完整性和 stapler ticket 已验证；Apple Silicon DMG 已公证并 stapled；Intel 包来自成功的双架构 CI。 |
 
 本地已下载的 v0.2.2：
 
@@ -57,6 +58,16 @@ v0.2.4-刷新修复已放到桌面：
   Intel CI 包：`~/Downloads/绣绘-v0.2.4最新-Intel.dmg`
   SHA-256 `b495937bbd9ff29101bf5a2f332ee0fab0f4b1f4148c3c9c13d688f3c300cc06`
   构建：<https://github.com/yoamimu/xiuhui-daimian-integration/actions/runs/33294619292>
+
+v0.2.4 正式客户包已复制到下载文件夹：
+
+- `~/Downloads/绣绘-v0.2.4-苹果芯片-正式客户版.dmg`
+  SHA-256 `73d5ab826579013a652503c5eda34aa9e31ff641bcd5dd9a33dab284b640ce6c`
+- `~/Downloads/绣绘-v0.2.4-Intel-正式客户版.dmg`
+  SHA-256 `b495937bbd9ff29101bf5a2f332ee0fab0f4b1f4148c3c9c13d688f3c300cc06`
+- 两个 DMG 均通过 `hdiutil verify` 和 `xcrun stapler validate`。
+- Intel 包曾由用户确认不崩、不闪；Apple Silicon 包曾由用户确认不崩、不闪。
+- 注意：尚未在全新未激活用户环境完成最终激活验收，发卡仍按 `docs/CUSTOMER_DELIVERY.md` 执行。
 
 ## 关键提交
 

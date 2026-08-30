@@ -38,3 +38,12 @@ When publishing a Developer-ID-signed + notarized build:
 - [ ] `04-bundle.sh` signed with Developer ID (verify: `codesign -dv` shows `Authority=Developer ID Application`).
 - [ ] `06-notarize.sh` reported `status: Accepted` and `stapler validate` passed.
 - [ ] The notarized dmg opens without Gatekeeper warning on a clean machine.
+
+## Customer delivery sign-off
+
+- [x] v0.2.4 arm64 and x86_64 customer DMGs are copied to the local Downloads folder.
+- [x] Both DMGs pass `hdiutil verify` and `xcrun stapler validate`.
+- [x] Both app bundles contain the native activation launcher and `inkscape-core`.
+- [ ] Test on a clean, never-activated Mac: device code appears and a generated license activates successfully.
+- [ ] Record the customer order, device code, start date, expiry date and issued license ID.
+- [ ] Do not deliver a license private key or the internal license generator to customers.
