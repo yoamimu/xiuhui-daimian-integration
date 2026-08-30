@@ -44,6 +44,7 @@ When publishing a Developer-ID-signed + notarized build:
 - [x] v0.2.4 arm64 and x86_64 customer DMGs are copied to the local Downloads folder.
 - [x] Both DMGs pass `hdiutil verify` and `xcrun stapler validate`.
 - [x] Both app bundles contain the native activation launcher and `inkscape-core`.
-- [ ] Test on a clean, never-activated Mac: device code appears and a generated license activates successfully.
+- [x] Test on a clean, never-activated Apple Silicon Mac: app opens and enters the activation flow after clearing the transfer quarantine attribute.
+- [x] User confirmed Intel and Apple Silicon drawing is stable without crashes or flicker.
 - [ ] Record the customer order, device code, start date, expiry date and issued license ID.
 - [ ] Do not deliver a license private key or the internal license generator to customers.
