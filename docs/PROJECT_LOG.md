@@ -21,7 +21,8 @@
 - Inkscape：`7923d92`
 - Ink/Stitch：`0312dac`
 - 正式 Git tag：`macos-v0.1.0`
-- `v0.2.x` 尚未打正式 tag，`CHANGES.md` 仍写在 `Unreleased`
+- v0.2.4 已固定为正式 Git tag：`macos-v0.2.4`，指向构建基线 `e5450aa`
+- `v0.2.x` 的用户可见变更仍待整理进正式发布说明
 
 ## 版本与客户包
 
