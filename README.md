@@ -72,6 +72,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - `tests/`: 授权服务与双架构客户端回归测试。
 - `release/`: 发布说明模板；不提交大体积安装包。
 - `docs/PROJECT_LOG.md`: 项目进度、版本、构建、测试结论和客户包状态。
+- `docs/PRD_XIUhUI_2.0.md`: 绣绘 2.0 产品需求和版本规划。
 
 ## 开发与构建建议
 
